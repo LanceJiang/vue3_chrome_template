@@ -1,12 +1,12 @@
 # vue3_chrome_template
 
-This template should help get you started developing with Vue 3 in Vite.
+该模板应该可以帮助您开始在 Vite 中使用 Vue 3 进行开发
 
-## Recommended IDE Setup
+## 推荐的 IDE 设置
 
 [VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin).
 
-## Type Support for `.vue` Imports in TS
+## TS 中对 .vue 导入的类型支持
 
 TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin) to make the TypeScript language service aware of `.vue` types.
 
@@ -17,9 +17,9 @@ If the standalone TypeScript plugin doesn't feel fast enough to you, Volar has a
     2) Find `TypeScript and JavaScript Language Features`, right click and select `Disable (Workspace)`
 2. Reload the VSCode window by running `Developer: Reload Window` from the command palette.
 
-## Customize configuration
+## 自定义配置
 
-See [Vite Configuration Reference](https://vitejs.dev/config/).
+查看 [Vite 配置参考](https://vitejs.dev/config/).
 
 ## Project Setup
 
@@ -30,7 +30,7 @@ npm install
 ### Compile and Hot-Reload for Development
 
 ```sh
-npm run dev
+npm start | npm run build:watch
 ```
 
 ### Type-Check, Compile and Minify for Production
