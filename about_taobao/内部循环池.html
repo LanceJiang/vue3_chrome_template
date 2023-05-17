@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<body>
+<script>
+  const files = [44, 1, 23, 44, 55, 44, 1, 324, 667].map(fileId => ({ fileId }))
+  let BG_TASK_LIST = files.map(v => {
+    const fn = function (){}
+    fn.fileId = v.fileId
+    return fn
+  })
+  BG_TASK_LIST.push(...BG_TASK_LIST)
+  let curFile = files.shift()
+  while (files.length && curFile) {
+    // const curFile = files.shift()
+    console.error('处理 cur file', curFile)
+    let fileId = curFile.fileId
+    let fn_index = BG_TASK_LIST.findIndex(fn => fn.fileId === fileId)
+    console.warn('处理 cur file 外循环 fn_index', fn_index)
+    // 任务队列删除相同fileId
+    while (fn_index > -1) {
+      console.warn('内循环 fn_index', fn_index)
+      console.error('即将删除的  fileFn', BG_TASK_LIST[fn_index], BG_TASK_LIST[fn_index].fileId)
+      BG_TASK_LIST.splice(fn_index, 1)
+      fn_index = BG_TASK_LIST.findIndex(fn => fn.fileId === fileId)
+      console.log('重新赋值 fn_index', fn_index)
+    }
+    curFile = files.shift()
+  }
+  console.log(files, 'files end')
+  console.log(BG_TASK_LIST, 'BG_TASK_LIST end')
+</script>
+</body>
+</html>
