@@ -5,7 +5,7 @@ export function consoleInfo(content = 'content', title = 'title', background = '
   console.log.apply(void 0, [`%c ${title}： %c ${content} `, 'padding: 1px; border-radius: 10px; color: #fff; background: #9159B2;', `padding: 1px; border-radius: 10px; color: #fff; background: ${background};`])
 }
 // 自定义 error log
-export function $log_error(info, title = 'error') {
+export function $log_error(info: any, title = 'error') {
   consoleInfo(info, title, '#f00')
 }
 
