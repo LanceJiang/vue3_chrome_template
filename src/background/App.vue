@@ -43,7 +43,6 @@ export default defineComponent({
         console.log('bg 卸载')
     },
     setup(props, { emit, attrs }) {
-        console.error(props, { emit, attrs }, 'props, { emit, attrs } setup')
         onMounted(() => {
             // todo
         })
