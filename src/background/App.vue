@@ -57,7 +57,7 @@ export default defineComponent({
         console.log('bg 卸载')
     },
     setup(props, { emit, attrs }) {
-        console.error(props, { emit, attrs }, 'props, { emit, attrs } setup')
+        // console.error(props, { emit, attrs }, 'props, { emit, attrs } setup')
         window.query_goodDetail_mobile = query_goodDetail_mobile
         window.query_goodDetail_pc = query_goodDetail_pc
         // 天猫 617266453987
