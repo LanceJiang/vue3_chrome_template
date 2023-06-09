@@ -26,6 +26,13 @@ import Taobao from "@/popup/page/taobao.vue";
 import Others from "@/popup/page/others.vue";
 import {ElSelect, ElOption, ElMessage} from 'element-plus'
 import {onMounted, reactive, ref} from "vue";
+import {createPopupCtx} from "./hooks/usePopupCtx";
+import {TAOBAO_LOSE_ORDER_IDS} from "@/utils/storage";
+const $background = chrome.extension.getBackgroundPage()
+console.error($background, '$background...')
+window.$background = $background // '123456'
+window.$bg = $background.$bg // '123456'
+const storage = $background.$bg.storage
 const components = {
   taobao: Taobao,
   others: Others,
@@ -44,12 +51,11 @@ const curType = ref('taobao')
 // 与bg关联的状态管理
 const bg_state = reactive({
   tasksLoading: false,
-  bg_tasks: [],
+  taobao_orderList_error: storage.ls_get_taobao_orderList('error'),
+  taobao_loseOrder_ids: storage.ls_get_list(TAOBAO_LOSE_ORDER_IDS),
 })
-const $background = chrome.extension.getBackgroundPage()
-console.error($background, '$background...')
-window.$background = $background // '123456'
-window.$bg = $background.$bg // '123456'
+createPopupCtx(bg_state)
+
 // 接收来自background发来的数据
 chrome.runtime.onMessage.addListener((msg) => {
   let { type, data, message } = msg
@@ -59,10 +65,21 @@ chrome.runtime.onMessage.addListener((msg) => {
       bg_state.tasksLoading = data
       return
     }
-    // 更新 bg_task
-    case 'upload_bg_task': {
-      console.error('请更新 Popup 的 upload_bg_task')
-      // bg_state.bg_tasks = [] // storage.ls_getBgTasks()
+    /*// 更新 bg_淘宝订单数据_成功
+    case 'upload_bg_taobao_orderList_success': {
+      console.error('请更新 Popup 的 upload_bg_taobao_orderList_success')
+      return
+    }*/
+    // 更新 bg_淘宝订单数据_失败
+    case 'upload_bg_taobao_orderList_error': {
+      console.error('请更新 Popup 的 taobao_orderList_error')
+      bg_state.taobao_orderList_error = storage.ls_get_taobao_orderList('error')
+      return
+    }
+    // 更新 bg_淘宝订单数据_失败
+    case 'upload_bg_taobao_loseOrder_ids': {
+      console.error('请更新 条件失效的订单数据列表 upload_bg_taobao_loseOrder_ids')
+      bg_state.taobao_loseOrder_ids = storage.ls_get_list(TAOBAO_LOSE_ORDER_IDS)
       return
     }
     // 更新数据成功 提示

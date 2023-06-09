@@ -42,11 +42,7 @@
   }
 
   // 尝试获取某一页的订单数据
-  const query_taobao_asyncBought_pc = (pageNum = 1, pageSize = 50) => {
-    const params = {
-      pageSize,
-      pageNum
-    }
+  const query_taobao_asyncBought_pc = (params = { pageSize: 50, pageNum: 1 }) => {
     return request({
       method: 'post',
       url: '//buyertrade.taobao.com/trade/itemlist/asyncBought.htm?action=itemlist/BoughtQueryAction&event_submit_do_query=1&_input_charset=utf8',
@@ -56,21 +52,31 @@
       data: Object.keys(params).map(k => `${k}=${params[k]}`).join('&')
     })
   }
-  const query_taobao_asyncBought_pcAll = async (interceptDate = '2022-12-31') => {
-    const interceptDateNum = +new Date(interceptDate)
-    const pageSize = 50
-    let pageNum = 1
+  const query_taobao_asyncBought_pcAll = async (query = {}) => {
+    // const interceptDateNum = +new Date(interceptDate)
+    if(query.dateBegin) {
+      query.dateBegin = +new Date(query.dateBegin)
+    }
+    const params = {
+      ...query,
+      pageSize: 50,
+      pageNum: 1
+    }
+    console.error('query_taobao_asyncBought_pc 请求参数： ', params)
+    // const pageSize = 50
+    // let pageNum = 1
     let bool = true
     // 有效订单
     let all_orders = []
     // 时间有效 但 过滤条件无效订单 订单号集合
     const loseOrder_ids = []
     while(bool) {
-      const cur_res = await query_taobao_asyncBought_pc(pageNum, pageSize)
+      const cur_res = await query_taobao_asyncBought_pc(params)
       const { mainOrders = [], page = {} } = cur_res || {}
       if(page?.currentPage === page?.totalPage) {
         bool = false
       }
+      /*
       const lastOrder = mainOrders[mainOrders.length - 1] || {}
       // 超过最小时间 做判断不再请求下一页
       if(+new Date(lastOrder.orderInfo?.createTime) < interceptDateNum) {
@@ -83,9 +89,11 @@
         return +new Date(o.orderInfo?.createTime) > interceptDateNum
       })
       const filterNum_1 = mainOrders_.length
-      console.warn(`当前第${pageNum}页， 生成时间有效订单个数为: ${filterNum_1}`)
+      console.warn(`当前第${params.pageNum}页， 生成时间有效订单个数为: ${filterNum_1}`)
       // step2: 订单有效过滤
-      mainOrders_ = mainOrders_.filter(v => {
+      mainOrders_ = mainOrders_.filter(v => { */
+      // 订单有效过滤
+      let mainOrders_ = mainOrders.filter(v => {
         // 订单状态信息
         const statusInfo = v.statusInfo || {}
         const operations = statusInfo.operations || []
@@ -107,9 +115,10 @@
         }
         return bool
       })
-      console.error(`当前是第${pageNum}页，需要获取的订单有${mainOrders_.length}个，定义为失效的订单有${filterNum_1 - mainOrders_.length}个`)
+      // console.error(`当前是第${params.pageNum}页，需要获取的订单有${mainOrders_.length}个，定义为失效的订单有${filterNum_1 - mainOrders_.length}个`)
+      console.error(`当前是第${params.pageNum}页，需要获取的订单有${mainOrders_.length}个`)
       // 对有效数据重新定义数据内容
-      mainOrders_.map(v => {
+      mainOrders_ = mainOrders_.map(v => {
         const orderInfo = v.orderInfo || {}
         return {
           // 订单创建时间
@@ -119,6 +128,7 @@
           // orderId: orderInfo.id,
           // 商品价格
           total_price: v.payInfo?.actualFee,
+          // 是否有运费 todo... payInfo.postFees.value不为 ￥0.00???
           // 商品名称集合: 'xxx;yyy;...'
           goods: v.subOrders.map(_v => _v.itemInfo?.title).join(';'),
           // 自定义扩展数据_状态信息url
@@ -134,7 +144,7 @@
       })
       all_orders = all_orders.concat(mainOrders_)
       if(bool) {
-        pageNum++
+        params.pageNum++
         const timeName = +new Date() + '_'
         console.time(timeName)
         await new Promise((r) => {
@@ -144,7 +154,7 @@
         console.timeEnd(timeName)
       }
     }
-    console.log(`总共需要请求数据${all_orders.length}个, 条件失效的(时间有效)订单数据${loseOrder_ids.length}个`)
+    console.log(`总共需要请求数据${all_orders.length}个, 条件失效的订单数据${loseOrder_ids.length}个`)
     console.error(all_orders, 'all_orders, loseOrder_ids', loseOrder_ids)
     return { orders: all_orders, loseOrder_ids }
   }
