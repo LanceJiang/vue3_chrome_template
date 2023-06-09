@@ -1,8 +1,9 @@
 import { createApp } from 'vue'
-import App from './App.vue'
+import Background from './Background.vue'
 // import pinia from "@/stores"
 
-const app = createApp(App)
+const app = createApp(Background)
 // app.use(pinia)
+// tid
 
 app.mount('#app')

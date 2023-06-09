@@ -1,0 +1,147 @@
+.chrome-plugin-ectool {
+  position: fixed;
+  z-index: 10;
+  right: 10px;
+  top: 55px;
+  box-shadow: 0 0 10px #858585;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 16px;
+  background-color: #2268f0;
+  background-image: -webkit-linear-gradient(
+    45deg, rgba(255, 255, 255, 0.2) 25%,
+    transparent 25%, transparent 50%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.2) 75%,
+    transparent 75%,
+    transparent
+  );
+}
+.chrome-plugin-ectool * {
+  margin: 0;
+  padding: 0;
+}
+.chrome-plugin-ectool .close {
+  position: absolute;
+  right: -4px;
+  top: -6px;
+  font-size: 40px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #2268f0;
+  line-height: 0.58;
+  text-align: center;
+  /*line-height: 28px;*/
+  box-shadow: 0 0 10px #858585;
+  cursor: pointer;
+}
+.chrome-plugin-ectool header {
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  line-height: 30px;
+}
+.chrome-plugin-ectool header img {
+  width: 20px;
+  margin-right: 4px;
+}
+.chrome-plugin-ectool .contentWrap {
+  padding: 10px;
+}
+.chrome-plugin-ectool .contentWrap h2 {
+  font-size: 24px;
+  line-height: 1.3;
+  color: #fff;
+}
+.chrome-plugin-ectool .footer {
+  display: flex;
+  margin-top: 6px;
+}
+.chrome-plugin-ectool .footer .btn {
+  width: 100px;
+  margin-left: auto;
+  background: #fff;
+  color: #000;
+  border-radius: 5px;
+  text-align: center;
+  cursor: pointer;
+}
+.chrome-plugin-ectool .footer .btn:hover {
+  transition: all 300ms;
+  transform: translate(1px, 1px);
+  /*background: #03f;*/
+}
+
+.chrome-plugin-ectool a {
+  color: white;
+  text-decoration: none;
+  font-size: 16px;
+}
+
+.chrome-plugin-ectool a:hover {
+  text-decoration: underline;
+  color: #ffee08;
+}
+
+.chrome-plugin-ectool-tip {
+  position: fixed;
+  z-index: 999;
+  left: 20px;
+  padding: 16px 10px;
+  top: 30px;
+  color: white;
+  min-width: 150px;
+  max-width: 700px;
+  border-radius: 3px;
+  text-align: center;
+  font-size: 16px;
+  background-color: #67c23a;
+  background-image: -webkit-linear-gradient(
+    -45deg, rgba(255, 255, 255, 0.2) 25%,
+    transparent 25%, transparent 50%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.2) 75%,
+    transparent 75%,
+    transparent
+  );
+  box-shadow: 0 0 3px rgba(0, 0, 0, .2);
+  transition: top .4s;
+}
+
+.animated {
+  -webkit-animation-duration: .5s;
+  animation-duration: .5s;
+  -webkit-animation-fill-mode: both;
+  animation-fill-mode: both
+}
+
+@-webkit-keyframes slideInLeft {
+  0% {
+    -webkit-transform: translate3d(-100%, 0, 0);
+    transform: translate3d(-100%, 0, 0);
+    visibility: visible
+  }
+  100% {
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0)
+  }
+}
+
+@keyframes slideInLeft {
+  0% {
+    -webkit-transform: translate3d(-100%, 0, 0);
+    transform: translate3d(-100%, 0, 0);
+    visibility: visible
+  }
+
+  100% {
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0)
+  }
+}
+
+.slideInLeft {
+  -webkit-animation-name: slideInLeft;
+  animation-name: slideInLeft
+}

@@ -15,6 +15,14 @@
     "persistent": true,
     "page": "background.html"
   },
+  "content_scripts": [
+    {
+      "matches": ["https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm*"],
+      "js": ["js/content_scripts/taobao/list_bought_items.js"],
+      "css": ["css/content_scripts/taobao/index.css"],
+      "run_at": "document_start"
+    }
+  ],
   "web_accessible_resources": ["js/inject.js", "img/logo.png"],
   "options_ui": {
     "page": "options.html",
@@ -22,6 +30,8 @@
   },
   "options_page": "options.html",
   "permissions": [
+    "webRequest",
+    "webRequestBlocking",
     "storage",
     "notifications",
     "https://*.taobao.com/*",

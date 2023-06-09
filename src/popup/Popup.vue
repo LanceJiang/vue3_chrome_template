@@ -24,9 +24,8 @@
 // import DropDown from "@/popup/components/DropDown.vue";
 import Taobao from "@/popup/page/taobao.vue";
 import Others from "@/popup/page/others.vue";
-import {ElSelect, ElOption} from 'element-plus'
-
-import {ref} from "vue";
+import {ElSelect, ElOption, ElMessage} from 'element-plus'
+import {onMounted, reactive, ref} from "vue";
 const components = {
   taobao: Taobao,
   others: Others,
@@ -42,6 +41,46 @@ const typeOptions = ref([
   }
 ])
 const curType = ref('taobao')
+// 与bg关联的状态管理
+const bg_state = reactive({
+  tasksLoading: false,
+  bg_tasks: [],
+})
+const $background = chrome.extension.getBackgroundPage()
+console.error($background, '$background...')
+window.$background = $background // '123456'
+window.$bg = $background.$bg // '123456'
+// 接收来自background发来的数据
+chrome.runtime.onMessage.addListener((msg) => {
+  let { type, data, message } = msg
+  switch (type) {
+    // 更新 taskLoading
+    case 'upload_bg_tasksLoading': {
+      bg_state.tasksLoading = data
+      return
+    }
+    // 更新 bg_task
+    case 'upload_bg_task': {
+      console.error('请更新 Popup 的 upload_bg_task')
+      // bg_state.bg_tasks = [] // storage.ls_getBgTasks()
+      return
+    }
+    // 更新数据成功 提示
+    case 'upload_bg_msg_success': {
+      return ElMessage.success(message || '操作成功~')
+    }
+    // 更新数据错误 提示
+    case 'upload_bg_msg_error': {
+      return ElMessage.warning(message || '获取出错~')
+    }
+    default:
+      console.log(`暂未获取到[${type}]监听类型`)
+  }
+})
+
+/*onMounted(() => {
+
+})*/
 </script>
 
 <style lang="scss" scoped>

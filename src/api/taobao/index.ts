@@ -1,25 +1,31 @@
 import request from './request'
 // import storage from "@/utils/storage"
 import { $log_error } from "@/utils/util";
+// import test from "@/config_constant";
 
+// v3 已不支持 webRequest 处理  改用 declarativeNetRequest
 /*chrome.webRequest.onBeforeSendHeaders.addListener(
   function (details) {
-    if (details.type === 'xmlhttprequest') {
-      const requestHeadersKeys = details.requestHeaders.map(item => item.name)
+    console.error(details, 'details....')
 
+    if (details.type === 'xmlhttprequest') {
+
+      const requestHeadersKeys = details.requestHeaders.map(item => item.name)
+      // chrome 72以上已经不支持修改referer
       if (requestHeadersKeys.indexOf('Referer') === -1) {
         details.requestHeaders.push({
           name: 'Referer',
-          value: details.url
+          // value: details.url
+          value: 'https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm'
         })
       }
 
-      if (requestHeadersKeys.indexOf('Upgrade-Insecure-Requests') === -1) {
-        details.requestHeaders.push({
-          name: 'Upgrade-Insecure-Requests',
-          value: '1'
-        })
-      }
+      // if (requestHeadersKeys.indexOf('Upgrade-Insecure-Requests') === -1) {
+      //   details.requestHeaders.push({
+      //     name: 'Upgrade-Insecure-Requests',
+      //     value: '1'
+      //   })
+      // }
 
       console.log(details)
 
@@ -28,7 +34,7 @@ import { $log_error } from "@/utils/util";
       }
     }
   },
-  { urls: [`*://!*api.home?*`] },
+  { urls: ['<all_urls>'] },
   ['blocking', 'requestHeaders']
 )*/
 
@@ -114,6 +120,7 @@ export function query_goodList (keyWord = '', s = 0) {
   })
 }
 
+
 // 获取当前搜索所有商品列表
 /**
  * @description 获取当前搜索所有商品列表（keyWord）
@@ -127,13 +134,15 @@ export function query_goodListAll (keyWord = '') {
     // 淘宝搜索最多100页
     for(let i = 0; i < 100; i++) {
       const title_str = `获取商品:${keyWord}, 第${i+1}页`
-      console.log(title_str)
-      const list: [] = await query_goodList(keyWord, i * pageNum).catch(e => {
+      // console.log(title_str)
+      let queryError = false
+      const list: any[] = await query_goodList(keyWord, i * pageNum).catch(e => {
         $log_error(e, `${title_str} 失败...`)
+        queryError = true
         return []
       })
       all_list = all_list.concat(list)
-      if(list.length < pageNum) {
+      if(!queryError && list.length < pageNum) {
         break
       } else if(i !== 99) {
         console.time(title_str)
@@ -236,6 +245,127 @@ export function query_goodDetail_pc (id = '705124996327') {
       console.log('query_goodDetail_pc失败', err)
       throw 'query_goodDetail_pc失败'
     })
+  })
+}
+
+/**
+ * @description 获取淘宝订单列表
+ * @returns {Promise<[]>}
+ */
+// 由于插件不再支持修改 referer 导致 模拟请求 订单列表 获取不到数据 改用 content注入 https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm 页面 请求方式 在该页面内 进行获取 通过 sendMessage 返回background进行下一步处理
+/*export const query_list_bought_items_pc = () => {
+  // 经验证: 天猫/淘宝/天猫超市公用一个已买到宝贝链接
+  /!*return request({
+    url: 'https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm',
+    method: 'GET'
+  }).then(res => {
+    const wrapper = document.createElement('root')
+    wrapper.innerHTML = res
+    let data: any
+    // res = (res.match(/var data = JSON.parse\('(.*)'\);/) || [])[1]
+    res = (res.match(/var (data = JSON.parse\(.*\));/) || [])[1]
+    eval(res)
+    // console.error(res, 'res..........', data)
+    // console.error(typeof res, 'res..........  type')
+    return new Promise( (resolve, reject) => {
+      try {
+        // res = JSON.parse(res)
+        resolve(data)
+        // 商品列表
+        /!*!// const good_list = res?.['mods']?.['itemlist']?.['data']?.['auctions'] || []
+        const good_list = res['mods']['itemlist']['data']['auctions']
+        // 默认keys
+        const keys = [
+          // 商品标题
+          'raw_title',
+          // 商品价格
+          'view_price',
+          // 快递费用
+          'view_fee',
+          // 商品来源地
+          'item_loc',
+          // 已付款人数展示
+          'view_sales',
+          // 店铺名称
+          'nick',
+          // 商品搜索id
+          'nid',
+        ]
+        // 链接相关keys
+        const link_keys = [
+          // 商品图片
+          'pic_url',
+          // 商品详情链接
+          'detail_url',
+          // 店铺链接
+          'shopLink',
+        ]
+        const list = good_list.map((v: any) => {
+          const obj: any = {}
+          // 默认key赋值
+          keys.forEach(key => {
+            obj[key] = v[key]
+          })
+          // 链接key赋值
+          link_keys.forEach(key => {
+            // 针对 link 配置协议
+            obj[key] = `https:${(v[key] || '').replace(/https?:/g, '')}`
+          })
+          return obj
+        })*!/
+        // resolve(list)
+      } catch (e) {
+        console.error(e, 'eeeee')
+        debugger
+        reject(`获取g_page_config失败: ${e}`)
+      }
+    })
+  }).catch(err => {
+    debugger
+  })*!/
+  return request({
+    url: 'https://buyertrade.taobao.com/trade/itemlist/asyncBought.htm?action=itemlist/BoughtQueryAction&event_submit_do_query=1&_input_charset=utf8',
+    method: 'POST',
+    data: {
+      pageNum: 2,
+      pageSize: 50,
+      prePageNo: 1
+    },
+    headers: {
+      // 'bx-v': '2.5.0',
+      'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      // 'accept': 'application/json, text/javascript, *!/!*; q=0.01',
+      // todo 由于 referer 不为 https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm 时, 没有data 数据, request请求 设置header referer 不允许 且 chrome.webRequest 处理referer chorome 72版本以上不再支持修改 固该方式不再适用  尝试 通过其他方式获取 [思考： 通过chrome.tab 打开 已买到的宝贝 https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm?spm=a230r.1.1997525045.2.45612caeub9RQL 通过 注入的js 进行模拟客户操作尝试进行获取 ...]
+      // 'Referer': 'https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm'
+    }
+  }).then(res => {
+    // console.error(res, 'res..........', data)
+    // console.error(typeof res, 'res..........  type')
+    return new Promise( (resolve, reject) => {
+      try {
+        // res = JSON.parse(res)
+        resolve(res)
+      } catch (e) {
+        console.error(e, 'eeeee')
+        debugger
+        reject(`获取g_page_config失败: ${e}`)
+      }
+    })
+  }).catch(err => {
+    debugger
+  })
+}*/
+export const query_taobao_trade_trackingNumber = (orderId: string) => {
+  /*// 交易成功 但是没有显示 查看物流的  获取 {isSuccess: "false"}
+    query_taobao_trade_trackingNumber('1805880399546594069').then(res => console.error(res, 'res'))
+    // 已退货的 为: {}
+    query_taobao_trade_trackingNumber('1822776528808594069').then(res => console.error(res, 'res'))*/
+  return request({
+    url: `https://buyertrade.taobao.com/trade/json/transit_step.do?bizOrderId=${orderId}`,
+    method: 'GET'
+  }).catch(err => {
+    console.error(err, 'error by https://buyertrade.taobao.com/trade/json/transit_step.do?bizOrderId')
+    return {}
   })
 }
 

@@ -110,3 +110,128 @@ M端滑块校验较多
 缺少部分： 1.登录  2.登录态在线  3.token 失效/或某些状态变更 获取数据方式变更 无法获取数据处理
 
 
+关于物流信息爬取：
+PC 端数据查取
+1_1. 查询订单列表 (https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm) 返回的数据： <script>
+                                                                                                                    var data = JSON.parse('{ ...}')'</script> 获取数据
+1_2.
+ -> 的 home.js(https://g.alicdn.com/dinamic/pc-trade-logistics/0.0.5/home.js) 内部加载
+var T = [new oi]
+                      , I = function(t, e) {
+                        var n = t.orderId
+                          , r = t.logisticsOrderId
+                          , o = t.mailNo;
+                        e ? h(!0) : m(!0),
+                        ca({
+                            api: "mtop.taobao.logistics.detailorlist.query",
+                            v: "1.0",
+                            ttid: Ii, // '#t#ip##_h5_web_default'
+                            data: {
+                                orderId: n, // '1905585745177594069'
+                                logisticsOrderId: r,
+                                mailNo: o,
+                                test: Ti.test
+                            }
+                        }).then((function(t) {
+                            !function(t, e) {
+                                if (e) {
+                                    var n = t.data
+                                      , r = void 0 === n ? {} : n
+                                      , o = t.endpoint
+                                      , i = {
+                                        type: "detail"
+                                    };
+                                    if ("logisticsPackageList" === (void 0 === o ? {} : o).page) {
+                                        i.type = "list";
+                                        var a = [];
+                                        Object.keys(r).forEach((function(t) {
+                                            var e = r[t] || {}
+                                              , n = e.tag
+                                              , o = e.fields
+                                              , i = void 0 === o ? {} : o;
+                                            if ("pakcage" === n) {
+                                                var u = i.subTitle
+                                                  , s = i.rightBtnUrl
+                                                  , c = i.numInfo;
+                                                a.push({
+                                                    key: t,
+                                                    title: u,
+                                                    numInfo: c,
+                                                    params: Ai(s.split("?")[1])
+                                                })
+                                            }
+                                        }
+                                        ));
+                                        var u = a[0]
+                                          , s = u.key
+                                          , c = u.params;
+                                        w(a),
+                                        O(s),
+                                        I(c, !1)
+                                    } else
+                                        j(t),
+                                        h(!1);
+                                    Ni("logistics_detail_pc.page_exposure", i, "EXP")
+                                } else
+                                    j(t),
+                                    h(!1),
+                                    m(!1)
+                            }((t || {}).data, e)
+                        }
+                        )).catch((function(t) {
+                            var r = (null != t && t.ret && t.ret[0] ? t.ret[0] : "").split("::")
+                              , o = r[0]
+                              , a = r[1]
+                              , u = a.split("<br/>")
+                              , c = u[0]
+                              , l = u[1];
+                            i(!0),
+                            s(c),
+                            f(l),
+                            -1 !== Ia.indexOf(o) && C(o, a),
+                            Mi({
+                                code: "apiError",
+                                message: o + "::" + a,
+                                success: !1,
+                                c1: n,
+                                c2: e
+                            })
+                        }
+                        ))
+                    }
+
+                    其中 ca 为：
+                    ca = function(t) {
+                                return void 0 === t && (t = {}),
+                                Oo.request(Object.assign({ // api / v /
+                                    api: "",
+                                    v: "1.0",
+                                    needLogin: !0,
+                                    LoginRequest: !0,
+                                    type: "GET",
+                                    dataType: "jsonp",
+                                    timeout: 2e4
+                                }, t)).then((function(t) {
+                                    var e;
+                                    return t && t.ret && t.ret[0] && (e = t.ret[0].split("::")[0]),
+                                    t && t.data && "SUCCESS" === e ? Promise.resolve(t) : Promise.reject(t)
+                                }
+                                )).catch((function(t) {
+                                    return Promise.reject(t)
+                                }
+                                ))
+                            }
+
+
+// 切换页面 用....
+   https://buyertrade.taobao.com/trade/itemlist/asyncBought.htm?action=itemlist/BoughtQueryAction&event_submit_do_query=1&_input_charset=utf8
+
+   canGetHistoryCount: false
+   historyCount: 0
+   needQueryHistory: false
+   onlineCount: 0
+   pageNum: 2
+   pageSize: 50
+   queryForV2: false
+   scene: pcBaseBought
+   prePageNo: 1
