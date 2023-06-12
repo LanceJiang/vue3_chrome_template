@@ -1,26 +1,30 @@
 <template>
-  <div class="popup-wrap">
-    <header class="header">
-      <!-- <DropDown :options="typeOptions" v-model="curType"/>-->
-      <img class="logo" src="@/../public/img/logo.png"/>
-      <ElSelect v-model="curType" size="small">
-        <el-option
-          v-for="item in typeOptions"
-          :key="item.value"
-          :label="item.label"
-          :value="item.value"
-        />
-      </ElSelect>
-      <span style="margin-left: auto;">title</span>
-    </header>
-    <main class="main">
-      <component :is="components[curType]"/>
-    </main>
-    <footer class="footer">footer</footer>
-  </div>
+  <ElConfigProvider :locale="locale">
+    <div class="popup-wrap">
+      <header class="header">
+        <!-- <DropDown :options="typeOptions" v-model="curType"/>-->
+        <img class="logo" src="@/../public/img/logo.png"/>
+        <ElSelect v-model="curType" size="small">
+          <el-option
+            v-for="item in typeOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </ElSelect>
+        <span style="margin-left: auto;">title</span>
+      </header>
+      <main class="main">
+        <component :is="components[curType]"/>
+      </main>
+      <footer class="footer">footer</footer>
+    </div>
+  </ElConfigProvider>
 </template>
 
 <script lang="ts" setup>
+import { ElConfigProvider } from 'element-plus'
+import locale from 'element-plus/dist/locale/zh-cn.mjs'
 // import DropDown from "@/popup/components/DropDown.vue";
 import Taobao from "@/popup/page/taobao.vue";
 import Others from "@/popup/page/others.vue";
@@ -52,6 +56,7 @@ const curType = ref('taobao')
 const bg_state = reactive({
   tasksLoading: false,
   taobao_orderList_error: storage.ls_get_taobao_orderList('error'),
+  taobao_orderList_errorLoading: $bg.states.taobao_orderList_errorLoading,
   taobao_loseOrder_ids: storage.ls_get_list(TAOBAO_LOSE_ORDER_IDS),
 })
 createPopupCtx(bg_state)
@@ -72,8 +77,14 @@ chrome.runtime.onMessage.addListener((msg) => {
     }*/
     // 更新 bg_淘宝订单数据_失败
     case 'upload_bg_taobao_orderList_error': {
-      console.error('请更新 Popup 的 taobao_orderList_error')
       bg_state.taobao_orderList_error = storage.ls_get_taobao_orderList('error')
+      bg_state.taobao_orderList_errorLoading = false
+      return
+    }
+    // 更新 bg_淘宝订单数据_失败重处理loading状态
+    case 'upload_bg_taobao_orderList_errorLoading': {
+      console.error('upload_bg_taobao_orderList_errorLoading ----', data)
+      bg_state.taobao_orderList_errorLoading = data
       return
     }
     // 更新 bg_淘宝订单数据_失败
@@ -88,7 +99,7 @@ chrome.runtime.onMessage.addListener((msg) => {
     }
     // 更新数据错误 提示
     case 'upload_bg_msg_error': {
-      return ElMessage.warning(message || '获取出错~')
+      return ElMessage.error(message || '获取出错~')
     }
     default:
       console.log(`暂未获取到[${type}]监听类型`)

@@ -120,7 +120,6 @@ export function query_goodList (keyWord = '', s = 0) {
   })
 }
 
-
 // 获取当前搜索所有商品列表
 /**
  * @description 获取当前搜索所有商品列表（keyWord）
@@ -368,7 +367,99 @@ export const query_taobao_trade_trackingNumber = (orderId: string) => {
     return {}
   })
 }
-
+export const query_taobao_trade_trackingNumber_byViewDetail = (viewDetail_url: string) => {
+  // 通过重定向之后的路径一般为(目前验证全是) eg: //trade.taobao.com/trade/detail/trade_order_detail.htm?biz_order_id=1830202466507594069
+  const common_taobao_redirect_handler = (res) => {
+    // 形式如:<script> var data = JSON.parse({});
+    let data: any
+    // res = (res.match(/var data = JSON.parse\('(.*)'\);/) || [])[1]
+    res = (res.match(/var (data = JSON.parse\(.*\));/) || [])[1]
+    eval(res)
+    // console.error(res, 'res..........', data)
+    return new Promise( (resolve, reject) => {
+      try {
+        const obj = data.deliveryInfo
+        // 运单号: data.logisticsNum
+        // 物流公司: data.logisticsName
+        const _res = {
+          expressName: obj.logisticsName,
+          expressId: obj.logisticsNum
+        }
+        resolve(_res)
+      } catch (e) {
+        reject(`query_taobao_trade_trackingNumber_byViewDetail [//trade.taobao.com/trade/detail/trade_item_detail.htm] 失败: ${e}`)
+      }
+    })
+  }
+ const handleConfig: {[key: string]: (res: any) => void} = {
+   // 淘宝详情类型1
+   // eg://tradearchive.taobao.com/trade/detail/trade_item_detail.htm?bizOrderId=1796441988877594069
+   '//tradearchive.taobao.com/trade/detail/trade_item_detail.htm': (res) => {
+     const wrapper = document.createElement('root')
+     wrapper.innerHTML = res
+     return new Promise( (resolve, reject) => {
+       try {
+         const labels = [...wrapper.querySelectorAll('td.label')]
+         // 物流公司
+         const expressName = ((labels.find(_dom => _dom?.innerText === '物流公司：') || {}).nextElementSibling?.innerText || '').replace(/(^\s*)|(\s*$)/g, "")
+         // 运单号
+         const expressId = ((labels.find(_dom => _dom.innerText === '运单号：') || {}).nextElementSibling?.innerText || '').replace(/(^\s*)|(\s*$)/g, "")
+         resolve({
+           expressName,
+           expressId
+         })
+       } catch (e) {
+         reject(`query_taobao_trade_trackingNumber_byViewDetail [//tradearchive.taobao.com/trade/detail/trade_item_detail.htm] 失败: ${e}`)
+       }
+     })
+   },
+   // 淘宝详情类型2
+   // eg://trade.taobao.com/trade/detail/trade_item_detail.htm?bizOrderId=1823572599339594069 -> 重定向 处理 验证√
+   '//trade.taobao.com/trade/detail/trade_item_detail.htm': common_taobao_redirect_handler,
+   // 淘宝详情类型3
+   // eg://buyertrade.taobao.com/trade/detail/trade_item_detail.htm?bizOrderId=1830202466507594069
+   '//buyertrade.taobao.com/trade/detail/trade_item_detail.htm': common_taobao_redirect_handler,
+   // 天猫详情
+   // eg://trade.tmall.com/detail/orderDetail.htm?bizOrderId=1823544375217594069
+   '//trade.tmall.com/detail/orderDetail.htm': (res) => {
+     // 形式如:<script>var detailData = {} \n \x3C/script>
+     // res = (res.match(/var detailData = (.*)\n.*\<\/script\>/) || [])[1]
+     res = (res.match(/var detailData = (.*)/) || [])[1]
+     return new Promise( (resolve, reject) => {
+       try {
+         res = JSON.parse(res)
+         const obj = res.orders?.list?.[0]?.logistic?.content?.[0] || {}
+         const _res = {
+           expressName: obj.companyName,
+           expressId: obj.mailNo
+         }
+         resolve(_res)
+       } catch (e) {
+         reject(`query_taobao_trade_trackingNumber_byViewDetail [//trade.tmall.com/detail/orderDetail.htm] 失败: ${e}`)
+       }
+     })
+   }
+ }
+  const url = viewDetail_url.indexOf('http') === 0 ? viewDetail_url : `https:${viewDetail_url}`
+  return request({
+    url,
+    method: 'GET'
+  }).then(res => {
+    let handler_res = null
+    const bool = Object.keys(handleConfig).some(url => {
+      if(viewDetail_url.indexOf(url) === 0) {
+        handler_res = handleConfig[url](res)
+        return true
+      }
+    })
+    debugger
+    // 查不到处理方法 提醒进行其他处理
+    if(!bool) {
+      $log_error('匹配url类型获取失败 请做其他处理', `query_taobao_trade_trackingNumber_byViewDetail`)
+    }
+    return handler_res
+  })
+}
 // 暂时不做处理 若有需要再做跟进
 export function query_jump_goodDetail_pc (url = '') {
   return request({

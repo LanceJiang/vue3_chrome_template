@@ -24,7 +24,7 @@
     <div class="item-box">
       <!-- 条件失效的订单数据列表 -->
       <template v-if="taobao_loseOrder_ids.length">
-        <div class="item-title _title">条件失效的订单数据列表: {{taobao_loseOrder_ids.length}}</div>
+        <div class="item-title _title">条件失效的订单数据列表(无'交易成功'&&'订单详情'订单): {{taobao_loseOrder_ids.length}}</div>
         <div style="max-height: 86px; border: 1px solid #ccc; background: #fef0f0;">
           <el-scrollbar max-height="84px">
             <div
@@ -58,8 +58,9 @@
             size="small"
             style="margin-left: auto;"
             type="primary"
+            :loading="taobao_orderList_errorLoading"
             @click="tryGetOrders"
-          >尝试重新获取</ElButton>
+          >尝试重新获取(下载excel)</ElButton>
         </div>
       </template>
     </div>
@@ -80,6 +81,7 @@ import {reactive, computed} from "vue";
 import {usePopupCtx} from "../hooks/usePopupCtx";
 const bg_state = usePopupCtx()
 const taobao_orderList_error = computed(() => bg_state.taobao_orderList_error)
+const taobao_orderList_errorLoading = computed(() => bg_state.taobao_orderList_errorLoading)
 const taobao_loseOrder_ids = computed(() => bg_state.taobao_loseOrder_ids)
 // import {jsonToSheetXlsx} from "@/utils/export2Excel";
 const orderQuery = reactive({
@@ -89,15 +91,27 @@ const orderQuery = reactive({
 })
 window.orderQuery = orderQuery
 const query_taobao_asyncBought_pcAll = () => {
-  console.error('test....')
   // $bg.try_connect_content_query_taobao_asyncBought_pcAll(JSON.parse(JSON.stringify(orderQuery)))
   $bg.try_connect_content_query_taobao_asyncBought_pcAll(orderQuery)
-  ElMessage.warning('ttttttttttttt')
-  // sendMessageToContentScript
 }
 
 const tryGetOrders = () => {
   console.error('尝试重新获取...')
+  // bg_state.taobao_orderList_errorLoading = true
+  // $bg.states.taobao_orderList_errorLoading
+  $bg.try_query_taobao_trade_trackingNumber_byViewDetailAll()
+  // $bg.try_query_taobao_trade_trackingNumber_byViewDetail()
+  /*$bg.try_query_taobao_trade_trackingNumber_byViewDetail({
+    // 天猫测试
+    // local_viewDetail_url: "//trade.tmall.com/detail/orderDetail.htm?bizOrderId=1823544375217594069",
+    // orderId: "1823544375217594069"
+    // 淘宝测试1
+    // local_viewDetail_url: "//tradearchive.taobao.com/trade/detail/trade_item_detail.htm?bizOrderId=1796441988877594069",
+    // orderId: "1796441988877594069"
+    // 淘宝测试2
+    local_viewDetail_url: "//trade.taobao.com/trade/detail/trade_item_detail.htm?bizOrderId=1823572599339594069",
+    orderId: "1823572599339594069"
+  })*/
 }
 const test2 = () => {
   // console.log(window, 'window....test2')
