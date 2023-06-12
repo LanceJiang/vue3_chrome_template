@@ -355,6 +355,7 @@ export function query_goodDetail_pc (id = '705124996327') {
   })
 }*/
 export const query_taobao_trade_trackingNumber = (orderId: string) => {
+  // 该功能 针对多包裹的 无法确定是否100%正确，待验证
   /*// 交易成功 但是没有显示 查看物流的  获取 {isSuccess: "false"}
     query_taobao_trade_trackingNumber('1805880399546594069').then(res => console.error(res, 'res'))
     // 已退货的 为: {}
@@ -381,9 +382,25 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (viewDetail_url: s
         const obj = data.deliveryInfo
         // 运单号: data.logisticsNum
         // 物流公司: data.logisticsName
-        const _res = {
+        let _res = {
           expressName: obj.logisticsName,
           expressId: obj.logisticsNum
+        }
+        // 当 showLogistics 为false 表示可能存在多个包裹 需要尝试从packageInfos获取快递集合
+        if(!obj.showLogistics) {
+          const lists = data.packageInfos?.list || []
+            _res = lists.reduce((_obj: any, v: any, idx: number) => {
+              const prefix = idx > 0 ? ', ' : ''
+              _obj.expressName += `${prefix}${v.companyName}`
+              _obj.expressId += `${prefix}${v.invoiceNo}`
+              return _obj
+            }, {expressName: '', expressId: ''})
+          /*_res = lists.map(v => ({
+            // 物流公司
+            expressName: v.companyName,
+            // 运单号
+            expressId: v.invoiceNo
+          }))*/
         }
         resolve(_res)
       } catch (e) {
@@ -452,7 +469,6 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (viewDetail_url: s
         return true
       }
     })
-    debugger
     // 查不到处理方法 提醒进行其他处理
     if(!bool) {
       $log_error('匹配url类型获取失败 请做其他处理', `query_taobao_trade_trackingNumber_byViewDetail`)

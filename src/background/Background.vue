@@ -184,10 +184,10 @@ export default defineComponent({
       // 更新 bg_淘宝订单数据_失败 loading
       chromeSendMessage({type: 'upload_bg_taobao_orderList_errorLoading', data: false})
       console.error(orders, '最终重新获取的orders 可以传给 后台 或生成xlsx 进行处理')
-      testDownLoadExcel(orders)
+      tryDownLoadDataToExcel(orders)
     }
     // 测试下载 Excel
-    const testDownLoadExcel = (data: any[]) => {
+    const tryDownLoadDataToExcel = (data: any[]) => {
       /*let data: any[] = Array.from({length: 10}).map((_, i) => ({
         // 商家订单号
         orderId: '1894436546428441573' + i,
@@ -206,9 +206,6 @@ export default defineComponent({
         orderId: '订单号',
         expressId: '快递号',
         expressName: '快递公司',
-        // createTime: '订单创建时间',
-        // goods: '商品名称',
-        // total_price: '商品价格',
         expressType: '快递支付类型' // todo
       }
       const header_keys = Object.keys(header)
@@ -216,14 +213,24 @@ export default defineComponent({
         o[k] = v[k]
         return o
       }, {}))
-      const data_first = data[0]
+      // const data_first = data[0]
       // 手动设置cols 宽度
-      const worksheet_cols = header_keys.map(k => {
+      const worksheet_cols = [
+        // 0:orderId: '订单号', 19位数 + 2
+        { 'wch': 21 },
+        // 1:expressId: '快递号',15位数 + 2
+        { 'wch': 17 },
+        // 2:expressName: '快递公司',14位数 + 2
+        { 'wch': 16 },
+        // 3:expressType: '快递支付类型' // todo
+        { 'wch': 14 },
+      ]
+      /*const worksheet_cols = header_keys.map(k => {
         const val = (data_first[k] || '').toString()
         return { 'wch': val.length * (val.charCodeAt(0) > 255 ? 2 : 1) + 2 }
       })
       // 修改 expressType col 长度
-      worksheet_cols[3] = {wch: 12 + 2}
+      worksheet_cols[3] = {wch: 12 + 2}*/
       const _date = new Date()
       ;jsonToSheetXlsx({
         data,
@@ -281,7 +288,7 @@ export default defineComponent({
         console.timeEnd(timeName)
       }
       console.error(orders, '最终orders 可以传给 后台 或生成xlsx 进行处理')
-      testDownLoadExcel(orders)
+      tryDownLoadDataToExcel(orders)
     }
     // 给contentJs 发送消息
     // message: {type, data}
@@ -328,7 +335,7 @@ export default defineComponent({
       query_goodListAll,
       query_goodDetail_mobile,
       query_goodDetail_pc,
-      testDownLoadExcel,
+      tryDownLoadDataToExcel,
       sendMessageToContentScript,
       try_connect_content_query_taobao_asyncBought_pcAll,
       try_query_taobao_trade_trackingNumber_byViewDetail,
@@ -336,6 +343,7 @@ export default defineComponent({
     }
     window.query_goodDetail_mobile = query_goodDetail_mobile
     window.query_goodDetail_pc = query_goodDetail_pc
+    window.query_taobao_trade_trackingNumber = query_taobao_trade_trackingNumber
     // 天猫 617266453987
     // const testQueryDetail =
     onMounted(async () => {

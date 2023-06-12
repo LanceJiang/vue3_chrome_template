@@ -115,7 +115,7 @@ const tryGetOrders = () => {
 }
 const test2 = () => {
   // console.log(window, 'window....test2')
-  // window.$bg.testDownLoadExcel()
+  // window.$bg.tryDownLoadDataToExcel()
   ElMessage.warning('其他功能todo')
 }
 </script>
