@@ -5,7 +5,7 @@
         <!-- <DropDown :options="typeOptions" v-model="curType"/>-->
         <img class="logo" src="@/../public/img/logo.png"/>
         <ElSelect v-model="curType" size="small">
-          <el-option
+          <ElOption
             v-for="item in typeOptions"
             :key="item.value"
             :label="item.label"
@@ -116,7 +116,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 
 .popup-wrap {
   width: 510px;
-  height: 550px;
+  height: 600px;
   display: flex;
   flex-direction: column;
 

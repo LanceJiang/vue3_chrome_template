@@ -1,25 +1,49 @@
 <template>
   <div class="wrap">
     <div class="item-title">获取淘宝订单列表数据</div>
-    <div class="item-content">
-      <ElInput
-        v-model="orderQuery.itemTitle"
-        style="width: 170px;margin-right: 4px;"
-        size="small"
-        placeholder="请输入商品标题或订单号"/>
-      <span>订单开始时间：<ElDatePicker
-        v-model="orderQuery.dateBegin"
-        style="width: 150px;margin-right: 4px;"
-        size="small"
-        type="datetime"
-        format="YYYY/MM/DD HH:mm:ss"
-        placeholder="订单开始时间过滤"/></span>
+    <div class="item-wrap">
+      <div class="item-content">
+        <div class="item">
+          <div class="label">订单类型：</div>
+          <ElSelect
+            v-model="orderType"
+            style="width: 170px;"
+            size="small">
+            <ElOption
+              v-for="item in typeOptions"
+              :key="item"
+              :label="item"
+              :value="item"
+            />
+          </ElSelect>
+        </div>
+        <div v-show="orderType === '所有订单'">
+          <div class="item">
+            <div class="label">订单开始时间：</div>
+            <ElDatePicker
+              v-model="orderQuery.dateBegin"
+              style="width: 170px;"
+              size="small"
+              type="datetime"
+              format="YYYY/MM/DD HH:mm:ss"
+              placeholder="订单开始时间过滤"/>
+          </div>
+          <div class="item">
+            <div class="label">商品标题或订单号：</div>
+            <ElInput
+              v-model="orderQuery.itemTitle"
+              style="width: 170px;"
+              size="small"
+              placeholder="请输入商品标题或订单号"/>
+          </div>
+        </div>
+      </div>
       <ElButton
         size="small"
         style="margin-left: auto;"
         type="primary"
         @click="query_taobao_asyncBought_pcAll"
-      >获取</ElButton>
+      >获取(下载excel)</ElButton>
     </div>
     <div class="item-box">
       <!-- 条件失效的订单数据列表 -->
@@ -76,23 +100,54 @@
   </div>
 </template>
 <script setup lang="ts" name="Taobao">
-import {ElButton, ElMessage, ElDatePicker, ElInput} from "element-plus";
-import {reactive, computed} from "vue";
+import {ElButton, ElMessage, ElDatePicker, ElInput, ElSelect, ElOption } from "element-plus";
+import {reactive, computed, ref, watch} from "vue";
 import {usePopupCtx} from "../hooks/usePopupCtx";
 const bg_state = usePopupCtx()
 const taobao_orderList_error = computed(() => bg_state.taobao_orderList_error)
 const taobao_orderList_errorLoading = computed(() => bg_state.taobao_orderList_errorLoading)
 const taobao_loseOrder_ids = computed(() => bg_state.taobao_loseOrder_ids)
-// import {jsonToSheetXlsx} from "@/utils/export2Excel";
 const orderQuery = reactive({
-  dateBegin: '2022/12/31 00:00:00',
+  dateBegin: '2023/01/01 00:00:00',
   // dateEnd: undefined,
   itemTitle: ''
 })
-window.orderQuery = orderQuery
+const typeOptions = ref([
+  '待收货',
+  '待发货',
+  '所有订单',
+])
+const orderType = ref('待收货')
 const query_taobao_asyncBought_pcAll = () => {
-  // $bg.try_connect_content_query_taobao_asyncBought_pcAll(JSON.parse(JSON.stringify(orderQuery)))
-  $bg.try_connect_content_query_taobao_asyncBought_pcAll(orderQuery)
+  const typeParams = {
+    '待收货': {
+      orderStatus: 'SEND',
+      tabCode: 'waitConfirm'
+    },
+    '待发货': {
+      orderStatus: 'NOT_SEND',
+      tabCode: 'waitSend'
+    },
+    '所有订单': {
+      orderStatus: '',
+      tabCode: ''
+    }
+  }
+  const params = {
+    ...(orderType.value === '所有订单' ? orderQuery : {}),
+    ...typeParams[orderType.value]
+  }
+  console.error(params, 'params....')
+  $bg.try_connect_content_query_taobao_asyncBought_pcAll(params)
+  /*// 验证待收货
+  $bg.try_connect_content_query_taobao_asyncBought_pcAll({
+    // 待收货
+    orderStatus: 'SEND',
+    tabCode: 'waitConfirm'
+    // 待发货
+    // orderStatus: 'NOT_SEND',
+    // tabCode: 'waitSend'
+  })*/
 }
 
 const tryGetOrders = () => {
@@ -140,10 +195,25 @@ const test2 = () => {
       background: #4097fd;
     }
   }
-  .item-content {
+  .item-wrap {
     display: flex;
-    align-items: center;
+  }
+  .item-content {
+    flex: 1;
+    //margin-right: 10px;
     //justify-content: center;
+    .item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+      .label {
+        width: 114px;
+        text-align: right;
+      }
+      /*& + .item {
+        margin-top: 4px;
+      }*/
+    }
   }
   .item-box {
     display: flex;
