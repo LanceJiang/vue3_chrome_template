@@ -73,6 +73,7 @@
     while(bool) {
       const cur_res = await query_taobao_asyncBought_pc(params)
       const { mainOrders = [], page = {} } = cur_res || {}
+      // 所有数据获取完成跳出循环条件
       if(page?.currentPage === page?.totalPage) {
         bool = false
       }
@@ -101,7 +102,7 @@
         let expressLimit = operations.find(operate => operate.id === 'viewLogistic')
 
         /** 自定义扩展数据相关 Start */
-        // 自定义扩展数据_状态信息url
+        // 自定义扩展数据_状态:是否有物流信息
         v.local_expressFlag = !!expressLimit
         // 自定义扩展数据_订单详情链接(用于尝试 进一步获取物流信息重要数据)
         v.local_viewDetail_url = (operations.find(operate => operate.id === 'viewDetail') || {}).url
@@ -120,12 +121,19 @@
       // 对有效数据重新定义数据内容
       mainOrders_ = mainOrders_.map(v => {
         const orderInfo = v.orderInfo || {}
+        const statusInfo = v.statusInfo || {}
         return {
+          // 本地唯一标记(存在1个订单多个物流用local_id 进行自定义方便做处理)
+          local_id: `${v.id}_`,
           // 订单创建时间
           createTime: orderInfo.createTime,
           // 订单id
           orderId: v.id,
           // orderId: orderInfo.id,
+          // 自定义扩展数据_状态描述:主要看描述是否部分发货 若为部分发货 会展示: '部分发货'
+          // v.local_statusText = statusInfo.text
+          // 是否部分发货标记: (该判断仅针对)待收货相对正确 ??? todo
+          partialShipment: statusInfo.text === '部分发货',
           // 商品价格
           total_price: v.payInfo?.actualFee,
           // 是否有运费 todo... payInfo.postFees.value不为 ￥0.00???
@@ -140,6 +148,8 @@
           expressId: '',
           // 物流公司名称
           expressName: '',
+          // 发货时间 todo
+          consignTime: '',
         }
       })
       all_orders = all_orders.concat(mainOrders_)
@@ -264,6 +274,7 @@
         break
       // 获取淘宝所有的订单数据
       case 'content_query_taobao_asyncBought_pcAll': {
+        // 获取中尝试添加 html 提醒客户 不能关闭当前页面? todo... 成功后 自动关闭html片段
         query_taobao_asyncBought_pcAll(message.data || undefined).then(res => {
           console.warn('content_query_taobao_asyncBought_pcAll 获取成功： ', res)
           sendMessageToBackground({type: 'bg_query_taobao_asyncBought_pcAll', data: res, code: 200 })

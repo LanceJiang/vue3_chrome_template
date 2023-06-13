@@ -105,7 +105,11 @@ export default defineComponent({
     // 连接 list_bought_items 页面 通知 该页面注入的方法 获取订单列表
     const try_connect_content_query_taobao_asyncBought_pcAll = (params) => {
       // 获取淘宝所有订单
-      const workingUrl = 'https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm'
+      let workingUrl = 'https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm'
+      // 需要添加tabCode 保证数据获取正常
+      if (params.tabCode) {
+        workingUrl += `?tabCode=${params.tabCode}`
+      }
       const tabsFilter = (tabs) => {
         const _tabs = []
         tabs.some(v => {
@@ -123,6 +127,7 @@ export default defineComponent({
         idx++
         // 清空 历史的错误数据列表
         clear_localErrorData()
+        // 连接content注入 进行数据获取
         sendMessageToContentScript({
           message: { type: 'content_query_taobao_asyncBought_pcAll', data: params },
           callback: ({ data, message, code }) => {
@@ -149,8 +154,10 @@ export default defineComponent({
       orderId: '1796441988877594069',
       local_viewDetail_url: '//tradearchive.taobao.com/trade/detail/trade_item_detail.htm?bizOrderId=1796441988877594069'
     }) => {
+      console.time(`try_query_taobao_trade_trackingNumber_byViewDetail${info.orderId}`)
       return query_taobao_trade_trackingNumber_byViewDetail(info.local_viewDetail_url).then(res => {
         console.error('query_taobao_trade_trackingNumber_byViewDetail 获取成功', res)
+        console.timeEnd(`try_query_taobao_trade_trackingNumber_byViewDetail${info.orderId}`)
       })
     }
     // 尝试重新获取失败的订单列表
@@ -161,16 +168,28 @@ export default defineComponent({
       if(!orders) {
         orders = storage.ls_get_taobao_orderList('error')
       }
+      const loadOrders = []
       for(let order of orders) {
-        await query_taobao_trade_trackingNumber_byViewDetail(order.local_viewDetail_url).then((res: any) => {
-          console.warn(`订单：${order.orderId}获取成功`, JSON.stringify(res))
-          console.error('query_taobao_trade_trackingNumber_byViewDetail 获取成功', res)
-          // 若获取成功 剔除列表数据_失败
-          if(res.expressId) {
-            update_taobao_orderList_error(order, false)
-          }
-          order.expressId = res.expressId // || '-'
-          order.expressName = res.expressName // || '-'
+        await query_taobao_trade_trackingNumber_byViewDetail(order.local_viewDetail_url).then((list: any) => {
+          console.warn(`订单：${order.orderId}获取成功`, JSON.stringify(list))
+          console.error('query_taobao_trade_trackingNumber_byViewDetail 获取成功', list)
+          list.forEach((v, idx) => {
+            // 若获取成功 剔除列表数据_失败
+            if(v.expressId && idx === 0) {
+              update_taobao_orderList_error(order, false)
+            }
+            loadOrders.push({
+              ...order,
+              // // 唯一值
+              // local_id: `${order.local_id}${v.expressId}`,
+              // 物流公司
+              expressName: v.expressName,
+              // 运单号
+              expressId: v.expressId,
+              // 快递发货时间
+              consignTime: v.consignTime,
+            })
+          })
         }).catch(e => {})
         const timeName = +new Date() + '_'
         console.time(timeName)
@@ -201,18 +220,28 @@ export default defineComponent({
         goods: 'aa;bb;',
         // 商品名称
         createTime: '2020-02-02 11:13:12',
+        // 部分发货
+        partialShipment: true,
       }))*/
       const header = {
         orderId: '订单号',
         expressId: '快递号',
+        consignTime: '发货时间',
+        // 是否部分发货
+        partialShipment: '发货状态',
         expressName: '快递公司',
-        expressType: '快递支付类型' // todo
+        // expressType: '快递支付类型' // todo
       }
       const header_keys = Object.keys(header)
-      data = data.map(v => header_keys.reduce((o, k) => {
-        o[k] = v[k]
-        return o
-      }, {}))
+      // 生成excel 前 数据美化
+      data = data.map(v => {
+        const obj: any = header_keys.reduce((o, k) => {
+          o[k] = v[k]
+          return o
+        }, {})
+        obj.partialShipment = obj.partialShipment ? '部分发货' : '已发货'
+        return obj
+      })
       // const data_first = data[0]
       // 手动设置cols 宽度
       const worksheet_cols = [
@@ -220,10 +249,14 @@ export default defineComponent({
         { 'wch': 21 },
         // 1:expressId: '快递号',15位数 + 2
         { 'wch': 17 },
-        // 2:expressName: '快递公司',14位数 + 2
-        { 'wch': 16 },
-        // 3:expressType: '快递支付类型' // todo
+        // 2:consignTime: '发货时间',20位数 + 2
+        { 'wch': 22 },
+        // 3:partialShipment: '发货状态',12位数 + 2
         { 'wch': 14 },
+        // 4:expressName: '快递公司',14位数 + 2
+        { 'wch': 16 },
+        // // 5:expressType: '快递支付类型' // todo
+        // { 'wch': 14 },
       ]
       /*const worksheet_cols = header_keys.map(k => {
         const val = (data_first[k] || '').toString()
@@ -263,13 +296,15 @@ export default defineComponent({
     // 尝试将所有的订单拿过来查询物流并做处理 生成 excel
     const try_asyncBought_pcAllTrackingOrders = async (orders: any[]) => {
       // todo  需要针对 有物流信息的优先处理 local_expressFlag:true, 不为true 的丢到 poopup 进行展示做下一步处理验证
+      const loadOrders = []
       for(let order of orders) {
         // 暂时先过滤掉无物流的数据
         if (!order.local_expressFlag) {
           update_taobao_orderList_error(order)
           continue
         }
-        await query_taobao_trade_trackingNumber(order.orderId).then((res: any) => {
+        // 获取物流信息快捷接口(但涉及到单订单多包裹数据 获取到的值会有问题)
+        /*await query_taobao_trade_trackingNumber(order.orderId).then((res: any) => {
           // {isSuccess: "true|false"}
           console.warn(`订单：${order.orderId}获取成功`, JSON.stringify(res))
           // 若未获取成功 更新到列表数据_失败
@@ -278,7 +313,29 @@ export default defineComponent({
           }
           order.expressId = res.expressId // || '-'
           order.expressName = res.expressName // || '-'
-        })
+          loadOrders.push(order)
+        })*/
+        await query_taobao_trade_trackingNumber_byViewDetail(order.local_viewDetail_url).then((list: any) => {
+          console.warn(`订单：${order.orderId}获取成功`, JSON.stringify(list))
+          console.error('query_taobao_trade_trackingNumber_byViewDetail 获取成功', list)
+          list.forEach((v, idx) => {
+            // 若获取成功 剔除列表数据_失败
+            if(v.expressId && idx === 0) {
+              update_taobao_orderList_error(order, false)
+            }
+            loadOrders.push({
+              ...order,
+              // // 唯一值
+              // local_id: `${order.local_id}${v.expressId}`,
+              // 物流公司
+              expressName: v.expressName,
+              // 运单号
+              expressId: v.expressId,
+              // 快递发货时间
+              consignTime: v.consignTime,
+            })
+          })
+        }).catch(e => {})
         const timeName = +new Date() + '_'
         console.time(timeName)
         await new Promise((r) => {
@@ -287,8 +344,8 @@ export default defineComponent({
         })
         console.timeEnd(timeName)
       }
-      console.error(orders, '最终orders 可以传给 后台 或生成xlsx 进行处理')
-      tryDownLoadDataToExcel(orders)
+      console.error(loadOrders, '最终orders 可以传给 后台 或生成xlsx 进行处理')
+      tryDownLoadDataToExcel(loadOrders)
     }
     // 给contentJs 发送消息
     // message: {type, data}
@@ -298,7 +355,7 @@ export default defineComponent({
       const { message, callback = (...args) => console.error(...args), tabsFilter = (tabs) => tabs.filter(v => v.url) } = config
       // 给每个 符合的 都给提示
       // 由于 currentWindow 时 通过插件获取debugger 获取不到数据 为了方便测试用于区分
-      const queryConfig = { /*url: 'https://sellercentral.amazon.com/!*', */ /*active: true,*/ }
+      const queryConfig = { /*url: 'https://sellercentral.amazon.com/!*', */ /*active: true*/ }
       // 生产环境
       // if(!local.IS_DEV) {
       //   queryConfig.currentWindow = true
@@ -344,6 +401,22 @@ export default defineComponent({
     window.query_goodDetail_mobile = query_goodDetail_mobile
     window.query_goodDetail_pc = query_goodDetail_pc
     window.query_taobao_trade_trackingNumber = query_taobao_trade_trackingNumber
+    window.try_query_taobao_trade_trackingNumber_byViewDetail = try_query_taobao_trade_trackingNumber_byViewDetail
+    // 3361026423687600618
+    /*
+    // 多包裹 (通过详情查 比 通过物流查 慢1.5倍-2倍)
+    query_taobao_trade_trackingNumber('3361026423687600618')
+    try_query_taobao_trade_trackingNumber_byViewDetail({
+      orderId: '3361026423687600618',
+        local_viewDetail_url: '//buyertrade.taobao.com/trade/detail/trade_item_detail.htm?bizOrderId=3361026423687600618'
+    })
+    // 单包裹类型...
+    query_taobao_trade_trackingNumber('3388522248766600618')
+    try_query_taobao_trade_trackingNumber_byViewDetail({
+      orderId: '3361026423687600618',
+        local_viewDetail_url: '//buyertrade.taobao.com/trade/detail/trade_item_detail.htm?bizOrderId=3388522248766600618'
+    })
+    */
     // 天猫 617266453987
     // const testQueryDetail =
     onMounted(async () => {

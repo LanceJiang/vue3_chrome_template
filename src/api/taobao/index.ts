@@ -360,9 +360,14 @@ export const query_taobao_trade_trackingNumber = (orderId: string) => {
     query_taobao_trade_trackingNumber('1805880399546594069').then(res => console.error(res, 'res'))
     // 已退货的 为: {}
     query_taobao_trade_trackingNumber('1822776528808594069').then(res => console.error(res, 'res'))*/
+  console.time(`query_taobao_trade_trackingNumber${orderId}`)
   return request({
     url: `https://buyertrade.taobao.com/trade/json/transit_step.do?bizOrderId=${orderId}`,
     method: 'GET'
+  }).then(res => {
+    console.error(res, 'res  query_taobao_trade_trackingNumber')
+    console.timeEnd(`query_taobao_trade_trackingNumber${orderId}`)
+    return res
   }).catch(err => {
     console.error(err, 'error by https://buyertrade.taobao.com/trade/json/transit_step.do?bizOrderId')
     return {}
@@ -382,25 +387,27 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (viewDetail_url: s
         const obj = data.deliveryInfo
         // 运单号: data.logisticsNum
         // 物流公司: data.logisticsName
-        let _res = {
+        let _res = [{
           expressName: obj.logisticsName,
           expressId: obj.logisticsNum
-        }
+        }]
         // 当 showLogistics 为false 表示可能存在多个包裹 需要尝试从packageInfos获取快递集合
         if(!obj.showLogistics) {
           const lists = data.packageInfos?.list || []
-            _res = lists.reduce((_obj: any, v: any, idx: number) => {
-              const prefix = idx > 0 ? ', ' : ''
-              _obj.expressName += `${prefix}${v.companyName}`
-              _obj.expressId += `${prefix}${v.invoiceNo}`
-              return _obj
-            }, {expressName: '', expressId: ''})
-          /*_res = lists.map(v => ({
+          /*_res = lists.reduce((_obj: any, v: any, idx: number) => {
+            const prefix = idx > 0 ? ', ' : ''
+            _obj.expressName += `${prefix}${v.companyName}`
+            _obj.expressId += `${prefix}${v.invoiceNo}`
+            return _obj
+          }, {expressName: '', expressId: ''})*/
+          _res = lists.map(v => ({
             // 物流公司
             expressName: v.companyName,
             // 运单号
-            expressId: v.invoiceNo
-          }))*/
+            expressId: v.invoiceNo,
+            // 快递发货时间
+            consignTime: v.consignTime
+          }))
         }
         resolve(_res)
       } catch (e) {
@@ -408,9 +415,10 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (viewDetail_url: s
       }
     })
   }
- const handleConfig: {[key: string]: (res: any) => void} = {
+  const handleConfig: {[key: string]: (res: any) => void} = {
    // 淘宝详情类型1
    // eg://tradearchive.taobao.com/trade/detail/trade_item_detail.htm?bizOrderId=1796441988877594069
+   // todo 验证 直接通过 url 拼接跳转 能否获取到淘宝相关数据  todo  smthy 的数据
    '//tradearchive.taobao.com/trade/detail/trade_item_detail.htm': (res) => {
      const wrapper = document.createElement('root')
      wrapper.innerHTML = res
@@ -421,10 +429,11 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (viewDetail_url: s
          const expressName = ((labels.find(_dom => _dom?.innerText === '物流公司：') || {}).nextElementSibling?.innerText || '').replace(/(^\s*)|(\s*$)/g, "")
          // 运单号
          const expressId = ((labels.find(_dom => _dom.innerText === '运单号：') || {}).nextElementSibling?.innerText || '').replace(/(^\s*)|(\s*$)/g, "")
-         resolve({
+         // todo 验证 多包裹类型进行处理
+         resolve([{
            expressName,
            expressId
-         })
+         }])
        } catch (e) {
          reject(`query_taobao_trade_trackingNumber_byViewDetail [//tradearchive.taobao.com/trade/detail/trade_item_detail.htm] 失败: ${e}`)
        }
@@ -439,6 +448,7 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (viewDetail_url: s
    // 天猫详情
    // eg://trade.tmall.com/detail/orderDetail.htm?bizOrderId=1823544375217594069
    '//trade.tmall.com/detail/orderDetail.htm': (res) => {
+     // todo.... 需要进行验证(天猫一单多包裹问题)
      // 形式如:<script>var detailData = {} \n \x3C/script>
      // res = (res.match(/var detailData = (.*)\n.*\<\/script\>/) || [])[1]
      res = (res.match(/var detailData = (.*)/) || [])[1]
@@ -446,10 +456,18 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (viewDetail_url: s
        try {
          res = JSON.parse(res)
          const obj = res.orders?.list?.[0]?.logistic?.content?.[0] || {}
-         const _res = {
+         const _res = [{
            expressName: obj.companyName,
            expressId: obj.mailNo
-         }
+         }]
+         // 天猫多包裹的数据 需要 有数据 进行验证 todo...
+         /*const list = res.orders?.list || [] //?.[0]?.logistic?.content?.[0] || {}
+         const _res = list.map(v => {
+           return {
+             expressName: v.companyName,
+             expressId: v.mailNo
+           }
+         })*/
          resolve(_res)
        } catch (e) {
          reject(`query_taobao_trade_trackingNumber_byViewDetail [//trade.tmall.com/detail/orderDetail.htm] 失败: ${e}`)
