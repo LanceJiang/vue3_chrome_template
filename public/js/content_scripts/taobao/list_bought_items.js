@@ -74,7 +74,7 @@
       const cur_res = await query_taobao_asyncBought_pc(params)
       const { mainOrders = [], page = {} } = cur_res || {}
       // 所有数据获取完成跳出循环条件
-      if(page?.currentPage === page?.totalPage) {
+      if(page?.currentPage >= page?.totalPage) {
         bool = false
       }
       /*
@@ -257,9 +257,9 @@
   // 接收来自后台的消息
   chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     // message: {type, message, data }
-    console.log('收到来自 ' + (sender.tab ? "content-script(" + sender.tab.url + ")" : "popup或者background") + ' 的消息：', message);
+    console.log(`收到来自${sender.tab ? "content-script(" + sender.tab.url + ")" : "popup或者background"} 的消息：`, message);
     // 清空 弹窗指令
-    // type命名方式  content_YourHandlerName
+    // type命名方式  content_YourHandlerName 通过content前缀判断为 注入类型监听
     // sendResponse({message,data})
     switch (message.type) {
       // 清除亚马逊后台提示窗口
@@ -282,12 +282,11 @@
           console.error('content_query_taobao_asyncBought_pcAll 获取失败： ', err)
           sendMessageToBackground({type: 'bg_query_taobao_asyncBought_pcAll', data: err, code: 400 })
         })
-        setTimeout(() => {
-          sendResponse({message: '我收到你的消息了(隔了2s告诉你的)', data: '处理中...'});
-        }, 2000)
+        sendResponse({message: '接收[content_query_taobao_asyncBought_pcAll]成功', data: '处理中...'});
       }
         break
       default: {
+
         sendResponse({
           code: 0,
           data: null,
