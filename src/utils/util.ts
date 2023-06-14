@@ -15,6 +15,19 @@ export function $log_error(info: any, title = 'error') {
  * @param keyArr 【需要获取该对象内部数据key数组】
  * @returns {*}
  */
-export function getDeepValue (obj, keyArr) {
+export function getDeepValue (obj: any, keyArr:string[]) {
   return keyArr.reduce((acc, key) => acc &&acc[key], obj)
+}
+
+// promise随机延时器
+export function delayPromise (randomNum = 2000, baseNum = 0) {
+  return new Promise(resolve => {
+    const timeName = +new Date() + '_'
+    console.time(timeName)
+    setTimeout(() => {
+      console.timeEnd(timeName)
+      // @ts-ignore
+      resolve()
+    }, baseNum + Math.random() * randomNum)
+  })
 }

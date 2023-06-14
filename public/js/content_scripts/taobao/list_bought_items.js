@@ -125,8 +125,8 @@
         return {
           // 本地唯一标记(存在1个订单多个物流用local_id 进行自定义方便做处理)
           local_id: `${v.id}_`,
-          // 订单创建时间
-          createTime: orderInfo.createTime,
+          // // 订单创建时间
+          // createTime: orderInfo.createTime,
           // 订单id
           orderId: v.id,
           // orderId: orderInfo.id,
@@ -134,13 +134,13 @@
           // v.local_statusText = statusInfo.text
           // 是否部分发货标记: (该判断仅针对)待收货相对正确 ??? todo
           partialShipment: statusInfo.text === '部分发货',
-          // 商品价格
-          total_price: v.payInfo?.actualFee,
+          // // 商品价格
+          // total_price: v.payInfo?.actualFee,
           // 是否有运费 todo... payInfo.postFees.value不为 ￥0.00???
-          // 商品名称集合: 'xxx;yyy;...'
-          goods: v.subOrders.map(_v => _v.itemInfo?.title).join(';'),
-          // 自定义扩展数据_状态信息url
-          local_expressFlag: v.local_expressFlag,
+          // // 商品名称集合: 'xxx;yyy;...'
+          // goods: v.subOrders.map(_v => _v.itemInfo?.title).join(';'),
+          // // 自定义扩展数据_状态:是否有物流信息
+          // local_expressFlag: v.local_expressFlag,
           // 自定义扩展数据_订单详情链接(主要用于尝试 进一步获取物流信息重要数据) todo...
           local_viewDetail_url: v.local_viewDetail_url,
           // express_xx相关内容数据做预留 交给 物流请求获取进行赋值
@@ -148,8 +148,8 @@
           expressId: '',
           // 物流公司名称
           expressName: '',
-          // 发货时间 todo
-          consignTime: '',
+          // 发货时间
+          consignTime: ''
         }
       })
       all_orders = all_orders.concat(mainOrders_)
@@ -303,7 +303,6 @@
     console.log('收到来自后台的回复：' + JSON.stringify(res || {})) // tip('.........')
   }) {
     chrome.runtime.sendMessage(message, res => {
-      debugger
       const error = chrome.runtime.lastError
       if (error) {
         console.log(error.message, 'chrome.runtime.lastError by [sendMessageToBackground]')

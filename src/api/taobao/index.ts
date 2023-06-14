@@ -1,6 +1,7 @@
 import request from './request'
 // import storage from "@/utils/storage"
 import { $log_error } from "@/utils/util";
+import type {TaobaoOrder} from "@/common";
 // import test from "@/config_constant";
 
 // v3 已不支持 webRequest 处理  改用 declarativeNetRequest
@@ -354,28 +355,35 @@ export function query_goodDetail_pc (id = '705124996327') {
     debugger
   })
 }*/
+/**
+ * 通过淘宝订单号获取纯物流信息
+ * @param orderId
+ */
 export const query_taobao_trade_trackingNumber = (orderId: string) => {
-  // 该功能 针对多包裹的 无法确定是否100%正确，待验证
   /*// 交易成功 但是没有显示 查看物流的  获取 {isSuccess: "false"}
     query_taobao_trade_trackingNumber('1805880399546594069').then(res => console.error(res, 'res'))
     // 已退货的 为: {}
     query_taobao_trade_trackingNumber('1822776528808594069').then(res => console.error(res, 'res'))*/
-  console.time(`query_taobao_trade_trackingNumber${orderId}`)
   return request({
     url: `https://buyertrade.taobao.com/trade/json/transit_step.do?bizOrderId=${orderId}`,
     method: 'GET'
-  }).then(res => {
-    console.error(res, 'res  query_taobao_trade_trackingNumber')
-    console.timeEnd(`query_taobao_trade_trackingNumber${orderId}`)
+  })/*.then(res => {
+    console.warn(res, 'res  query_taobao_trade_trackingNumber')
     return res
-  }).catch(err => {
+  })*/.catch(err => {
     console.error(err, 'error by https://buyertrade.taobao.com/trade/json/transit_step.do?bizOrderId')
     return {}
   })
 }
-export const query_taobao_trade_trackingNumber_byViewDetail = (viewDetail_url: string) => {
+
+/**
+ * 通过淘宝详情链接获取详情信息(单包裹快递时间从纯物流接口读取)
+ * @param order
+ */
+export const query_taobao_trade_trackingNumber_byViewDetail = (order: Partial<TaobaoOrder>) => {
+  const { local_viewDetail_url, orderId } = order
   // 通过重定向之后的路径一般为(目前验证全是) eg: //trade.taobao.com/trade/detail/trade_order_detail.htm?biz_order_id=1830202466507594069
-  const common_taobao_redirect_handler = (res) => {
+  const common_taobao_redirect_handler = (res: string) => {
     // 形式如:<script> var data = JSON.parse({});
     let data: any
     // res = (res.match(/var data = JSON.parse\('(.*)'\);/) || [])[1]
@@ -389,17 +397,14 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (viewDetail_url: s
         // 物流公司: data.logisticsName
         let _res = [{
           expressName: obj.logisticsName,
-          expressId: obj.logisticsNum
+          expressId: obj.logisticsNum,
+          consignTime: undefined
         }]
-        // 当 showLogistics 为false 表示可能存在多个包裹 需要尝试从packageInfos获取快递集合
+        // 当 showLogistics 为false 表示存在多个包裹 需要尝试从packageInfos获取快递集合
+        // 多包裹类型订单
         if(!obj.showLogistics) {
-          const lists = data.packageInfos?.list || []
-          /*_res = lists.reduce((_obj: any, v: any, idx: number) => {
-            const prefix = idx > 0 ? ', ' : ''
-            _obj.expressName += `${prefix}${v.companyName}`
-            _obj.expressId += `${prefix}${v.invoiceNo}`
-            return _obj
-          }, {expressName: '', expressId: ''})*/
+          // 多包裹类型订单
+          const lists: any[] = data.packageInfos?.list || []
           _res = lists.map(v => ({
             // 物流公司
             expressName: v.companyName,
@@ -408,8 +413,17 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (viewDetail_url: s
             // 快递发货时间
             consignTime: v.consignTime
           }))
+          resolve(_res)
+          return
         }
-        resolve(_res)
+        // 单包裹类型无法获取到发货时间另做请求处理
+        query_taobao_trade_trackingNumber(orderId).then((res: any) => {
+          // console.log(`单包裹订单：${orderId}物流获取成功`, res)
+          const address = res.address || []
+          // 倒数第二条数据{place:'您的订单开始处理||等待揽收中', time: 'yyyy-MM-dd hh:mm:ss'}
+          _res[0].consignTime = address[address.length - 2]?.time
+          resolve(_res)
+        })
       } catch (e) {
         reject(`query_taobao_trade_trackingNumber_byViewDetail [//trade.taobao.com/trade/detail/trade_item_detail.htm] 失败: ${e}`)
       }
@@ -455,19 +469,30 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (viewDetail_url: s
      return new Promise( (resolve, reject) => {
        try {
          res = JSON.parse(res)
-         const obj = res.orders?.list?.[0]?.logistic?.content?.[0] || {}
+         /*const obj = res.orders?.list?.[0]?.logistic?.content?.[0] || {}
          const _res = [{
            expressName: obj.companyName,
            expressId: obj.mailNo
-         }]
+         }]*/
          // 天猫多包裹的数据 需要 有数据 进行验证 todo...
-         /*const list = res.orders?.list || [] //?.[0]?.logistic?.content?.[0] || {}
-         const _res = list.map(v => {
+         const list = res.orders?.list || []
+         const _res = list.map((v: any) => {
+           const info = v.logistic?.content[0] || {}
            return {
-             expressName: v.companyName,
-             expressId: v.mailNo
+             expressName: info.companyName,
+             expressId: info.mailNo
            }
-         })*/
+         })
+         // 第一单快递发货时间
+         const consignTime_0 = ((res.stepbar.options || []).find(v => v.content === '卖家发货') || {}).time
+         if(consignTime_0) {
+           _res[0].consignTime = consignTime_0
+         }
+         // 多包裹类型 发货时间 需要另做处理 todo...
+         // 提示添加处理(方便从订单进行查询跟进) temptemptemp
+         if(_res.length > 1) {
+           _res[1].consignTime = '天猫多包裹发货时间(todo)'
+         }
          resolve(_res)
        } catch (e) {
          reject(`query_taobao_trade_trackingNumber_byViewDetail [//trade.tmall.com/detail/orderDetail.htm] 失败: ${e}`)
@@ -475,14 +500,14 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (viewDetail_url: s
      })
    }
  }
-  const url = viewDetail_url.indexOf('http') === 0 ? viewDetail_url : `https:${viewDetail_url}`
+  const url = local_viewDetail_url!.indexOf('http') === 0 ? local_viewDetail_url : `https:${local_viewDetail_url}`
   return request({
     url,
     method: 'GET'
   }).then(res => {
     let handler_res = null
     const bool = Object.keys(handleConfig).some(url => {
-      if(viewDetail_url.indexOf(url) === 0) {
+      if(local_viewDetail_url!.indexOf(url) === 0) {
         handler_res = handleConfig[url](res)
         return true
       }
@@ -499,7 +524,7 @@ export function query_jump_goodDetail_pc (url = '') {
   return request({
     url,
     method: 'GET',
-    responseAll: true
+    // responseAll: true
   }).then(res => {
     console.log(res, 'res')
 /*    const { data, request } = res

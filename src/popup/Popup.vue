@@ -83,13 +83,13 @@ chrome.runtime.onMessage.addListener((msg) => {
     }
     // 更新 bg_淘宝订单数据_失败重处理loading状态
     case 'upload_bg_taobao_orderList_errorLoading': {
-      console.error('upload_bg_taobao_orderList_errorLoading ----', data)
+      console.log('upload_bg_taobao_orderList_errorLoading ----', data)
       bg_state.taobao_orderList_errorLoading = data
       return
     }
     // 更新 bg_淘宝订单数据_失败
     case 'upload_bg_taobao_loseOrder_ids': {
-      console.error('请更新 条件失效的订单数据列表 upload_bg_taobao_loseOrder_ids')
+      // console.log('请更新 条件失效的订单数据列表 upload_bg_taobao_loseOrder_ids')
       bg_state.taobao_loseOrder_ids = storage.ls_get_list(TAOBAO_LOSE_ORDER_IDS)
       return
     }
