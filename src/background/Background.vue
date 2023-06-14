@@ -62,6 +62,11 @@ export default defineComponent({
           } else {
             console.error('bg_query_taobao_asyncBought_pcAll 获取失败', data)
           }
+          sendResponse({
+            code: 200,
+            data: null,
+            message: '[bg_query_taobao_asyncBought_pcAll]请求接收成功'
+          })
           break
         }
         /*case 'XXXXXXX': {
