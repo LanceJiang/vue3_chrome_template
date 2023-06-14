@@ -419,9 +419,14 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (order: Partial<Ta
         // 单包裹类型无法获取到发货时间另做请求处理
         query_taobao_trade_trackingNumber(orderId).then((res: any) => {
           // console.log(`单包裹订单：${orderId}物流获取成功`, res)
+          const _res_0 = _res[0]
           const address = res.address || []
           // 倒数第二条数据{place:'您的订单开始处理||等待揽收中', time: 'yyyy-MM-dd hh:mm:ss'}
-          _res[0].consignTime = address[address.length - 2]?.time
+          _res_0.consignTime = address[address.length - 2]?.time
+          // 若详情物流公司获取为空 进行修正处理
+          if((!_res_0.expressName || _res_0.expressName === '—') && res.expressName) {
+            _res_0.expressName = res.expressName
+          }
           resolve(_res)
         })
       } catch (e) {
