@@ -1,6 +1,6 @@
 <template>
   <div class="wrap">
-    <div class="item-title">获取淘宝订单列表数据</div>
+    <div class="common-title">获取淘宝订单列表数据</div>
     <div class="item-wrap">
       <div class="item-content">
         <div class="item">
@@ -46,9 +46,12 @@
       >获取(下载excel)</ElButton>
     </div>
     <div class="item-box">
-      <!-- 条件失效的订单数据列表 -->
+      <template v-if="taobao_orderLogText">
+        <div class="common-title _title">当前获取</div>
+        <div style="background: #ff6000;color: #fff;">{{taobao_orderLogText}}</div>
+      </template>
       <template v-if="taobao_loseOrder_ids.length">
-        <div class="item-title _title">条件失效的订单数据列表(无'交易成功'&&'订单详情'订单): {{taobao_loseOrder_ids.length}}</div>
+        <div class="common-title _title">条件失效的订单数据列表(无'交易成功'&&'订单详情'订单): {{taobao_loseOrder_ids.length}}</div>
         <div style="max-height: 86px; border: 1px solid #ccc; background: #fef0f0;">
           <el-scrollbar max-height="84px">
             <div
@@ -62,7 +65,7 @@
         </div>
       </template>
       <template v-if="taobao_orderList_error.length">
-        <div class="item-title _title">数据获取失败展示: {{taobao_orderList_error.length}}</div>
+        <div class="common-title _title">数据获取失败展示: {{taobao_orderList_error.length}}</div>
         <!--        <div class="tr">
           <div class="td">(失败)订单号</div>
           <div class="td">商品名称</div>
@@ -88,15 +91,15 @@
         </div>
       </template>
     </div>
-    <div class="item-title">其他功能...</div>
+<!--    <div class="common-title">其他功能...</div>
     <div class="item-content">
       <ElButton
         style="margin-left: auto;"
         type="primary"
         size="small"
         @click="test2">其他功能todo</ElButton>
-    </div>
-  <!--  todo 展示失败的订单列表 todo...  -->
+    </div>-->
+  <!--  todo 展示失败的订单列表 todo...???  -->
   </div>
 </template>
 <script setup lang="ts" name="Taobao">
@@ -107,6 +110,7 @@ const bg_state = usePopupCtx()
 const taobao_orderList_error = computed(() => bg_state.taobao_orderList_error)
 const taobao_orderList_errorLoading = computed(() => bg_state.taobao_orderList_errorLoading)
 const taobao_loseOrder_ids = computed(() => bg_state.taobao_loseOrder_ids)
+const taobao_orderLogText = computed(() => bg_state.taobao_orderLogText)
 const orderQuery = reactive({
   dateBegin: '2023/01/01 00:00:00',
   // dateEnd: undefined,
@@ -180,21 +184,6 @@ const test2 = () => {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  .item-title {
-    position: relative;
-    display: flex;
-    align-items: center;
-    padding: 6px 0;
-    font-size: 14px;
-    color: rgba(0, 0, 0, 0.85);
-    &:before {
-      content: "";
-      width: 3px;
-      height: 16px;
-      margin-right: 6px;
-      background: #4097fd;
-    }
-  }
   .item-wrap {
     display: flex;
   }

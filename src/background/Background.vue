@@ -55,6 +55,7 @@ export default defineComponent({
             console.error('爬取的淘宝数据为： ', data)
             // orders: 有效订单, loseOrder_ids: 无物流且不为交易成功的订单
             const { orders, loseOrder_ids } = data
+            chromeSendMessage({type: 'upload_bg_workStatus', data: '2.工作中(get订单列表ok)'})
             storage.ls_set_list(TAOBAO_LOSE_ORDER_IDS, loseOrder_ids)
             // 更新条件失效的订单
             chromeSendMessage({type: 'upload_bg_taobao_loseOrder_ids'})
@@ -94,7 +95,11 @@ export default defineComponent({
 
     const states = {
       // 数据申明
-      taobao_orderList_errorLoading: false
+      taobao_orderList_errorLoading: false,
+      // 插件执行状态
+      workStatus: '空闲', // 空闲||工作中
+      // 当前功能类型
+      pageType: 'taobao', // 参考 Popup typeOptions
     }
     // 清除历史错误数据
     const clear_localErrorData = () => {
@@ -147,6 +152,9 @@ export default defineComponent({
               // chromeSendCommonMsg(message, false)
               const msg = '当前打开的淘宝 我的订单页 关联失效，建议关闭原我的淘宝订单页，进行重试'
               chromeSendCommonMsg(msg, false)
+            } else {
+              // 消息派发成功: 更新popup 工作状态描述
+              chromeSendMessage({type: 'upload_bg_workStatus', data: '1.工作中(get订单列表)'})
             }
           },
           tabsFilter
@@ -308,6 +316,9 @@ export default defineComponent({
     // 第一次尝试将所有的订单拿过来查询物流并做处理 生成 excel
     const try_asyncBought_pcAllTrackingOrders = async (orders: any[]) => {
       // todo  需要针对 有物流信息的优先处理 local_expressFlag:true, 不为true 的丢到 poopup 进行展示做下一步处理验证
+      const timeName = +new Date() + '_try_asyncBought_pcAllTrackingOrders'
+      console.time(timeName)
+      chromeSendMessage({type: 'upload_bg_workStatus', data: '3.工作中(获取物流)'})
       const loadOrders = []
       let num = 1
       const total_num = orders.length
@@ -329,7 +340,10 @@ export default defineComponent({
           order.expressName = res.expressName // || '-'
           loadOrders.push(order)
         })*/
-        console.error(`获取第${num}条订单：${order.orderId}, 剩：${total_num - num}条数据`)
+        const txt = `获取第${num}条订单：${order.orderId}, 剩：${total_num - num}条数据`
+        console.error(txt)
+        // popup 上进行更新
+        chromeSendMessage({type: 'upload_bg_taobao_orderLogText', data: txt})
         num++
         await query_taobao_trade_trackingNumber_byViewDetail(order).then((list: any) => {
           console.warn(`订单：${order.orderId}获取成功`, JSON.stringify(list))
@@ -355,6 +369,10 @@ export default defineComponent({
         await delayPromise(2000, 500)
       }
       console.error(loadOrders, '最终orders 可以传给 后台 或生成xlsx 进行处理')
+      console.timeEnd(timeName)
+      chromeSendMessage({type: 'upload_bg_workStatus', data: '4.空闲(订单处理完成)'})
+      // 工作完成 进行清空
+      chromeSendMessage({type: 'upload_bg_taobao_orderLogText', data: ''})
       tryDownLoadDataToExcel(loadOrders)
     }
     // 给contentJs 发送消息

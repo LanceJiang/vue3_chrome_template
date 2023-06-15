@@ -282,7 +282,7 @@
           console.error('content_query_taobao_asyncBought_pcAll 获取失败： ', err)
           sendMessageToBackground({type: 'bg_query_taobao_asyncBought_pcAll', data: err, code: 400 })
         })
-        sendResponse({message: '接收[content_query_taobao_asyncBought_pcAll]成功', data: '处理中...'});
+        sendResponse({message: '接收[content_query_taobao_asyncBought_pcAll]成功', data: '获取订单列表中'});
       }
         break
       default: {

@@ -1,18 +1,13 @@
 <template>
   <div class="wrap">
-    Others
+    <div class="common-title">Others</div>
     <div class="item">
-      尝试获取
+      其他功能...
     </div>
-    <ElButton @click="test_taobao_asyncBought_pcAll">我是 ElButton</ElButton>
   </div>
 </template>
 <script setup lang="ts">
-import {ElButton, ElMessage} from "element-plus";
-const test_taobao_asyncBought_pcAll = () => {
-  console.error('test....')
-  ElMessage.warning('ttttttttttttt')
-}
+// import {ElButton, ElMessage} from "element-plus";
 </script>
 <style scoped lang="scss">
 .wrap {
