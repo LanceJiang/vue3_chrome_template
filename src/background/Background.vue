@@ -10,18 +10,69 @@ import {
   query_jump_goodDetail_pc,
   query_taobao_trade_trackingNumber_byViewDetail
 } from '@/api/taobao';
-import {jsonToSheetXlsx} from "@/utils/export2Excel";
-import storage, {TAOBAO_LOSE_ORDER_IDS} from "@/utils/storage"
+import envConfig from '@/config_constant'
+import storage from "@/utils/storage"
 import type {MessageRequest} from "@/common";
 import {delayPromise} from "@/utils/util";
+import {
+  useBackground,
+  updateBgMsg,
+  chromeSendMessage,
+  update_taobao_loseOrder_ids,
+  update_taobao_orderList_error,
+  update_taobao_orderList_errorOne,
+  tryDownLoadDataToExcel
+} from "./hooks/useBackground";
 
+/**
+ * 连接给contentJs注入的文件进行消息传递
+ * @param config
+ */
+const sendMessageToContentScript = (config = {}) => {
+  const { message, callback = (...args) => console.error(...args), tabsFilter = (tabs) => tabs.filter(v => v.url) } = config
+  // 给每个 符合的 都给提示
+  // 由于 currentWindow 时 通过插件获取debugger 获取不到数据 为了方便测试用于区分
+  const queryConfig = { /*url: 'https://!*.taobao.com/!*',  active: true*/ }
+  // 生产环境
+  // if(!envConfig.IS_DEV) {
+  //   queryConfig.currentWindow = true
+  // }
+  chrome.tabs.query(queryConfig, (tabs) => {
+    // 如果有 url 的话 证明 是 在manifest 授权 且 也授权 content_scripts 的数据 【即后台页面数据】
+    // 条件过滤 tabs
+    let filterTabs = typeof tabsFilter === "function" ? tabsFilter(tabs) : tabs.filter((v: any) => v.url)
+    console.error(tabs, 'tabs filterTabs', filterTabs)
+    if(filterTabs.length) {
+      filterTabs.map((tab, i) => {
+        chrome.tabs.sendMessage(tab.id, message as MessageRequest, (response) => {
+          const error: any = chrome.runtime.lastError
+          if (error) {
+            console.log(tab, error.message, 'chrome.runtime.lastError by [sendMessageToContentScript]')
+            callback({ message: `通过tabs.sendMessage 处理失败:编号#${i}, 请重新尝试处理~`, code: 401 })
+            // do you work, that's it. No more unchecked error
+          } else {
+            callback({ code: 200, data: response })
+          }
+        })
+      })
+    } else {
+      callback({ message: '未查到匹配的tabs, 请重新尝试处理~', code: 400 })
+    }
+  })
+}
 export default defineComponent({
-  name: 'background',
   beforeUnmount() {
     console.log('bg 卸载')
     window.$bg = null
   },
   setup() {
+    const {
+      states,
+      // updateBgMsg,
+      // chromeSendMessage
+      query_asyncBought_pcAllTrackingOrders,
+      try_query_taobao_trade_trackingNumber_byViewDetailAll
+    } = useBackground()
     // 初始化
     chrome.runtime.onInstalled.addListener(details => {
       console.log('欢迎使用 vue3_crx_template')
@@ -35,13 +86,6 @@ export default defineComponent({
           storage.ls_set(lastVersionKey, curVersion)
       }
     })
-    const chromeSendMessage = chrome.runtime.sendMessage
-    const chromeSendCommonMsg = (message, isSuccess = false) => {
-      return chromeSendMessage({
-        type: isSuccess ? 'upload_bg_msg_success' : 'upload_bg_msg_error',
-        message
-      })
-    }
     /**
      * 接收来自popup和content_script发来的信息请求
      */
@@ -55,11 +99,11 @@ export default defineComponent({
             console.error('爬取的淘宝数据为： ', data)
             // orders: 有效订单, loseOrder_ids: 无物流且不为交易成功的订单
             const { orders, loseOrder_ids } = data
-            chromeSendMessage({type: 'upload_bg_workStatus', data: '2.工作中(get订单列表ok)'})
-            storage.ls_set_list(TAOBAO_LOSE_ORDER_IDS, loseOrder_ids)
+            states.workStatus = '2.工作中(get订单列表ok)'
             // 更新条件失效的订单
-            chromeSendMessage({type: 'upload_bg_taobao_loseOrder_ids'})
-            try_asyncBought_pcAllTrackingOrders(orders)
+            update_taobao_loseOrder_ids(loseOrder_ids)
+            // 获取所有订单物流信息
+            query_asyncBought_pcAllTrackingOrders(orders)
           } else {
             console.error('bg_query_taobao_asyncBought_pcAll 获取失败', data)
           }
@@ -82,7 +126,6 @@ export default defineComponent({
           break
         }*/
         default: {
-          debugger
           sendResponse({
             code: 0,
             data: null,
@@ -92,27 +135,17 @@ export default defineComponent({
       }
       return true
     })
-
-    const states = {
-      // 数据申明
-      taobao_orderList_errorLoading: false,
-      // 插件执行状态
-      workStatus: '空闲', // 空闲||工作中
-      // 当前功能类型
-      pageType: 'taobao', // 参考 Popup typeOptions
-    }
     // 清除历史错误数据
     const clear_localErrorData = () => {
       // 1.清空条件失效的订单
-      storage.ls_set_list(TAOBAO_LOSE_ORDER_IDS, [])
-      // 更新条件失效的订单
-      chromeSendMessage({type: 'upload_bg_taobao_loseOrder_ids'})
+      update_taobao_loseOrder_ids([])
       // 2.清空bg_淘宝订单数据_失败
-      storage.ls_set_taobao_orderList([], 'error')
-      // 更新 bg_淘宝订单数据_失败
-      chromeSendMessage({type: 'upload_bg_taobao_orderList_error'})
+      update_taobao_orderList_error([])
     }
-    // 连接 list_bought_items 页面 通知 该页面注入的方法 获取订单列表
+    /**
+     * 尝试连接 list_bought_items 页面 通知 该页面注入的方法 获取订单列表
+     * @param params
+     */
     const try_connect_content_query_taobao_asyncBought_pcAll = (params) => {
       // 获取淘宝所有订单
       let workingUrl = 'https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm'
@@ -120,6 +153,7 @@ export default defineComponent({
       if (params.tabCode) {
         workingUrl += `?tabCode=${params.tabCode}`
       }
+      // 匹配tabs 进行过滤
       const tabsFilter = (tabs) => {
         const _tabs = []
         tabs.some(v => {
@@ -149,12 +183,13 @@ export default defineComponent({
               setTimeout(localRun, 6000)
             } else if (code === 401) {
               // pop提示失败
-              // chromeSendCommonMsg(message, false)
+              // updateBgMsg(message, false)
               const msg = '当前打开的淘宝 我的订单页 关联失效，建议关闭原我的淘宝订单页，进行重试'
-              chromeSendCommonMsg(msg, false)
+              updateBgMsg(msg, false)
             } else {
               // 消息派发成功: 更新popup 工作状态描述
-              chromeSendMessage({type: 'upload_bg_workStatus', data: '1.工作中(get订单列表)'})
+              states.workStatus = '1.工作中(get订单列表)'
+              // upload_bg_workStatus('1.工作中(get订单列表)')
             }
           },
           tabsFilter
@@ -184,233 +219,7 @@ export default defineComponent({
         console.timeEnd(`try_query_taobao_trade_trackingNumber_byViewDetail${info.orderId}`)
       })
     }
-    // 重新尝试获取失败的订单列表
-    const try_query_taobao_trade_trackingNumber_byViewDetailAll = async (orders: any) => {
-      states.taobao_orderList_errorLoading = true
-      // 更新 bg_淘宝订单数据_失败 loading
-      chromeSendMessage({type: 'upload_bg_taobao_orderList_errorLoading', data: true})
-      if(!orders) {
-        orders = storage.ls_get_taobao_orderList('error')
-      }
-      /*const loadOrders = []
-      for(let order of orders) {
-        /!*await query_taobao_trade_trackingNumber_byViewDetail(order).then((list: any) => {
-          console.warn(`订单：${order.orderId}获取成功`, JSON.stringify(list))
-          console.error('query_taobao_trade_trackingNumber_byViewDetail 获取成功', list)
-          list.forEach((v, idx) => {
-            // 若获取成功 剔除列表数据_失败
-            if(v.expressId && idx === 0) {
-              update_taobao_orderList_error(order, false)
-            }
-            loadOrders.push({
-              ...order,
-              // // 唯一值
-              // local_id: `${order.local_id}${v.expressId}`,
-              // 物流公司
-              expressName: v.expressName,
-              // 运单号
-              expressId: v.expressId,
-              // 快递发货时间
-              consignTime: v.consignTime,
-            })
-          })
-        }).catch(e => {})*!/
-        // 2-5s 延时
-        await delayPromise(3000, 2000)
-      }*/
-      await try_asyncBought_pcAllTrackingOrders(orders)
-      states.taobao_orderList_errorLoading = false
-      // 更新 bg_淘宝订单数据_失败 loading
-      chromeSendMessage({type: 'upload_bg_taobao_orderList_errorLoading', data: false})
-      // console.error(loadOrders, '最终重新获取的orders 可以传给 后台 或生成xlsx 进行处理')
-      // tryDownLoadDataToExcel(orders)
-    }
-    // 测试下载 Excel
-    const tryDownLoadDataToExcel = (data: any[]) => {
-      /*let data: any[] = Array.from({length: 10}).map((_, i) => ({
-        // 商家订单号
-        orderId: '1894436546428441573' + i,
-        // 快递号
-        expressId: '78688738027061' + i,
-        // 快递公司
-        expressName: '中通快递' + i,
-        // 快递支付类型
-        expressType: i,
-        // 商品名称
-        goods: 'aa;bb;',
-        // 商品名称
-        createTime: '2020-02-02 11:13:12',
-        // 部分发货
-        partialShipment: true,
-      }))*/
-      const header = {
-        orderId: '订单号',
-        expressId: '快递号',
-        consignTime: '发货时间',
-        // 是否部分发货
-        partialShipment: '发货状态',
-        expressName: '快递公司',
-        // expressType: '快递支付类型' // todo
-      }
-      const header_keys = Object.keys(header)
-      // 生成excel 前 数据美化
-      data = data.map(v => {
-        const obj: any = header_keys.reduce((o, k) => {
-          o[k] = v[k]
-          return o
-        }, {})
-        obj.partialShipment = obj.partialShipment ? '部分发货' : '已发货'
-        return obj
-      })
-      // const data_first = data[0]
-      // 手动设置cols 宽度
-      const worksheet_cols = [
-        // 0:orderId: '订单号', 19位数 + 2
-        { 'wch': 21 },
-        // 1:expressId: '快递号',15位数 + 2
-        { 'wch': 17 },
-        // 2:consignTime: '发货时间',20位数 + 2
-        { 'wch': 22 },
-        // 3:partialShipment: '发货状态',12位数 + 2
-        { 'wch': 14 },
-        // 4:expressName: '快递公司',14位数 + 2
-        { 'wch': 16 },
-        // // 5:expressType: '快递支付类型' // todo
-        // { 'wch': 14 },
-      ]
-      /*const worksheet_cols = header_keys.map(k => {
-        const val = (data_first[k] || '').toString()
-        return { 'wch': val.length * (val.charCodeAt(0) > 255 ? 2 : 1) + 2 }
-      })
-      // 修改 expressType col 长度
-      worksheet_cols[3] = {wch: 12 + 2}*/
-      const _date = new Date()
-      ;jsonToSheetXlsx({
-        data,
-        // 自定义头
-        header,
-        filename: `订单导出${_date.toLocaleDateString()} ${_date.toLocaleTimeString()}.xlsx`,
-        worksheet_cols,
-        /*json2sheetOpts: {
-          // 指定顺序
-          header: ['expressId', 'orderId'],
-        },*/
-      })
-    }
-    const update_taobao_orderList_error = (file, isAdd = true) => {
-      const files = storage.ls_get_taobao_orderList('error')
-      // 清除相同orderId 订单记录
-      let file_idx = files.findIndex(v => file.orderId === v.orderId)
-      while (file_idx > -1) {
-        files.splice(file_idx, 1)
-        file_idx = files.findIndex(v => file.orderId === v.orderId)
-      }
-      // 添加新的错误数据
-      if(isAdd) {
-        files.unshift(file)
-      }
-      storage.ls_set_taobao_orderList(files, 'error')
-      // 更新 bg_淘宝订单数据_失败
-      chromeSendMessage({type: 'upload_bg_taobao_orderList_error'})
-    }
-    // 第一次尝试将所有的订单拿过来查询物流并做处理 生成 excel
-    const try_asyncBought_pcAllTrackingOrders = async (orders: any[]) => {
-      // todo  需要针对 有物流信息的优先处理 local_expressFlag:true, 不为true 的丢到 poopup 进行展示做下一步处理验证
-      const timeName = +new Date() + '_try_asyncBought_pcAllTrackingOrders'
-      console.time(timeName)
-      chromeSendMessage({type: 'upload_bg_workStatus', data: '3.工作中(获取物流)'})
-      const loadOrders = []
-      let num = 1
-      const total_num = orders.length
-      for(let order of orders) {
-        // 暂时先过滤掉无物流的数据
-        /*if (!order.local_expressFlag) {
-          update_taobao_orderList_error(order)
-          continue
-        }*/
-        // 获取物流信息快捷接口(但涉及到单订单多包裹数据 获取到的值会有问题)
-        /*await query_taobao_trade_trackingNumber(order.orderId).then((res: any) => {
-          // {isSuccess: "true|false"}
-          console.warn(`订单：${order.orderId}获取成功`, JSON.stringify(res))
-          // 若未获取成功 更新到列表数据_失败
-          if(!res.expressId) {
-            update_taobao_orderList_error(order)
-          }
-          order.expressId = res.expressId // || '-'
-          order.expressName = res.expressName // || '-'
-          loadOrders.push(order)
-        })*/
-        const txt = `获取第${num}条订单：${order.orderId}, 剩：${total_num - num}条数据`
-        console.error(txt)
-        // popup 上进行更新
-        chromeSendMessage({type: 'upload_bg_taobao_orderLogText', data: txt})
-        num++
-        await query_taobao_trade_trackingNumber_byViewDetail(order).then((list: any) => {
-          console.warn(`订单：${order.orderId}获取成功`, JSON.stringify(list))
-          list.forEach((v, idx) => {
-            // 若获取成功 剔除列表数据_失败
-            if(v.expressId && idx === 0) {
-              update_taobao_orderList_error(order, false)
-            }
-            loadOrders.push({
-              ...order,
-              // // 唯一值
-              // local_id: `${order.local_id}${v.expressId}`,
-              // 物流公司
-              expressName: v.expressName,
-              // 运单号
-              expressId: v.expressId,
-              // 快递发货时间
-              consignTime: v.consignTime,
-            })
-          })
-        }).catch(e => {})
-        // 延时0.5-2.5s
-        await delayPromise(2000, 500)
-      }
-      console.error(loadOrders, '最终orders 可以传给 后台 或生成xlsx 进行处理')
-      console.timeEnd(timeName)
-      chromeSendMessage({type: 'upload_bg_workStatus', data: '4.空闲(订单处理完成)'})
-      // 工作完成 进行清空
-      chromeSendMessage({type: 'upload_bg_taobao_orderLogText', data: ''})
-      tryDownLoadDataToExcel(loadOrders)
-    }
-    // 给contentJs 发送消息
-    // message: {type, data}
-    // console.error(import.meta.env.PROD, 'ddddddddddddd');
-    // const sendMessageToContentScript = (message, callback, config = {}) => {
-    const sendMessageToContentScript = (config = {}) => {
-      const { message, callback = (...args) => console.error(...args), tabsFilter = (tabs) => tabs.filter(v => v.url) } = config
-      // 给每个 符合的 都给提示
-      // 由于 currentWindow 时 通过插件获取debugger 获取不到数据 为了方便测试用于区分
-      const queryConfig = { /*url: 'https://sellercentral.amazon.com/!*', */ /*active: true*/ }
-      // 生产环境
-      // if(!local.IS_DEV) {
-      //   queryConfig.currentWindow = true
-      // } // todo...
-      chrome.tabs.query(queryConfig, (tabs) => {
-        // 如果有 url 的话 证明 是 在manifest 授权 且 也授权 content_scripts 的数据 【即后台页面数据】
-        // 条件过滤 tabs
-        let filterTabs = typeof tabsFilter === "function" ? tabsFilter(tabs) : tabs.filter(v => v.url)
-        console.error(tabs, 'tabs filterTabs', filterTabs)
-        if(filterTabs.length) {
-          filterTabs.map((tab, i) => {
-            chrome.tabs.sendMessage(tab.id, message, (response) => {
-              const error = chrome.runtime.lastError
-              if (error) {
-                console.log(tab, error.message, 'chrome.runtime.lastError by [sendMessageToContentScript]')
-                callback({ message: `通过tabs.sendMessage 处理失败:编号#${i}, 请重新尝试处理~`, code: 401 })
-                // do you work, that's it. No more unchecked error
-              } else {
-                callback({ code: 200, data: response })
-              }
-            })
-          })
-        } else {
-          callback({ message: '未查到匹配的tabs, 请重新尝试处理~', code: 400 })
-        }
-      })
-    }
+    // 可于popup使用的$bg集合
     window.$bg = {
       storage,
       // 数据申明
@@ -446,8 +255,6 @@ export default defineComponent({
         local_viewDetail_url: '//buyertrade.taobao.com/trade/detail/trade_item_detail.htm?bizOrderId=3388522248766600618'
     })
     */
-    // 天猫 617266453987
-    // const testQueryDetail =
     onMounted(async () => {
       // 测试获取商品列表 Start
       /*query_goodList('6个核桃').then(res => {
@@ -523,8 +330,6 @@ export default defineComponent({
       /*query_list_bought_items_pc().then(res => {
           console.error(res, 'result')
       })*/
-
-      // todo 尝试 获取淘宝订单相关数据 导出 xlsx
 
     })
   },

@@ -6,7 +6,7 @@
     // 注入自定义JS
     injectCustomJs();
     // query_taobao_asyncBought_pcAll()
-    // try_asyncBought_pcAllTrackingOrders()
+    // query_asyncBought_pcAllTrackingOrders()
     // tip('33333')
     // initCustomWarnPanel();
   });
@@ -176,7 +176,7 @@
     })
   }
 
-  /*const try_asyncBought_pcAllTrackingOrders = () => {
+  /*const query_asyncBought_pcAllTrackingOrders = () => {
     query_taobao_asyncBought_pcAll('2022-10-31').then(async orders => {
       for(let order of orders) {
         await query_taobao_trade_trackingNumber(order.orderId).then(res => {
