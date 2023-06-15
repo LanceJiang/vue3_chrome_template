@@ -205,12 +205,12 @@ export function useBackground() {
         })
       }).catch(e => {
         update_taobao_orderList_errorOne(order, true)
-        // 失败输入填充
+        /*// 失败输入填充
         loadOrders.push({
           ...order,
           // // 唯一值
           // local_id: `${order.local_id}${v.expressId}`,
-        })
+        })*/
         $log_error(e, `订单：${order.orderId}详情获取失败`)
       })
       // 延时0.5-2.5s
