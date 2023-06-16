@@ -250,7 +250,7 @@ export function useBackground() {
   const states = reactive({
     // 数据申明
     // 订单列表更新间隔
-    taobao_orderUpdateInterval: '2-5s', // 2-5秒间隔
+    taobao_orderUpdateInterval: '2-6s', // 2-6秒间隔
     // 全订单获取
     taobao_orderList_loading: false,
     // 历史的失败订单获取
@@ -367,7 +367,7 @@ export function useBackground() {
       })
       // 延时1-4s
       // @ts-ignore
-      const delayValue = taobao_orderUpdateIntervalConfig[states.taobao_orderUpdateInterval] || [1000, 2000]
+      const delayValue = taobao_orderUpdateIntervalConfig[states.taobao_orderUpdateInterval] || taobao_orderUpdateIntervalConfig['2-6s']
       console.error('间隔', states.taobao_orderUpdateInterval, 'delayValue', delayValue)
       // taobao_orderUpdateInterval todo
       await delayPromise(...delayValue)
