@@ -63,6 +63,10 @@
       pageNum: 1
     }
     console.error('query_taobao_asyncBought_pc 请求参数： ', params)
+    sendMessageToBackground({
+      type: 'pop_upload_bg_msg_success',
+      message: `订单请求接收成功: ${JSON.stringify(query)}`
+    })
     // const pageSize = 50
     // let pageNum = 1
     let bool = true
@@ -117,7 +121,12 @@
         return bool
       })
       // console.error(`当前是第${params.pageNum}页，需要获取的订单有${mainOrders_.length}个，定义为失效的订单有${filterNum_1 - mainOrders_.length}个`)
-      console.error(`当前是第${params.pageNum}页，需要获取的订单有${mainOrders_.length}个`)
+      const message = `总共有：${page?.totalPage}页，当前是第${params.pageNum}页，需要获取的订单有${mainOrders_.length}个`
+      sendMessageToBackground({
+        type: 'pop_upload_bg_msg_success',
+        message
+      })
+      console.error(message)
       // 对有效数据重新定义数据内容
       mainOrders_ = mainOrders_.map(v => {
         const orderInfo = v.orderInfo || {}
@@ -225,7 +234,7 @@
     panel.querySelector('.btn').onclick = function () {
       clearWarnPanel()
       // 发送消息给后台 更新 任务
-      sendMessageToBackground({type: 'activate_updateCookie', data: null})
+      sendMessageToBackground({type: 'bg_activate_updateCookie', data: null})
     }      // console.log('触发 background 更新 ....')
 
     cur_panel = panel

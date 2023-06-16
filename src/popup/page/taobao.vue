@@ -136,7 +136,10 @@ const taobao_orderUpdateInterval = computed({
 
 const taobao_orderUpdateIntervalOptions_ = ref(JSON.parse(JSON.stringify(taobao_orderUpdateIntervalOptions)))
 // 用于测试切换间隔0s打开
-window.test_switch0sStatus = () => taobao_orderUpdateIntervalOptions_.value[3].disabled = !taobao_orderUpdateIntervalOptions_.value[3].disabled
+window.test_switch0sStatus = () => {
+  const idx = taobao_orderUpdateIntervalOptions_.value.length - 1
+  taobao_orderUpdateIntervalOptions_.value[idx].disabled = !taobao_orderUpdateIntervalOptions_.value[idx].disabled
+}
 const taobao_orderList_loading = computed(() => bg_state.taobao_orderList_loading)
 const taobao_orderList_error = computed(() => bg_state.taobao_orderList_error)
 const taobao_orderList_errorLoading = computed(() => bg_state.taobao_orderList_errorLoading)

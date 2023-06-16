@@ -86,62 +86,68 @@ const updatePageType = (val) => {
 createPopupCtx(bg_state)
 
 // 接收来自background发来的数据
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   let { type, data, message } = msg
+  /**仅接收pop_前缀的数据用以 区分 background(bg_)*/
   switch (type) {
     // 更新 taskLoading
-    case 'upload_bg_tasksLoading': {
+    case 'pop_upload_bg_tasksLoading': {
       bg_state.tasksLoading = data
       return
     }
     // 更新 插件工作状态
-    case 'upload_bg_workStatus': {
+    case 'pop_upload_bg_workStatus': {
       bg_state.workStatus = data
       return
     }
     // 更新 当前爬取的淘宝信息
-    case 'upload_bg_taobao_orderLogText': {
+    case 'pop_upload_bg_taobao_orderLogText': {
       bg_state.taobao_orderLogText = data
       return
     }
     /*// 更新 bg_淘宝订单数据_成功
-    case 'upload_bg_taobao_orderList_success': {
-      console.error('请更新 Popup 的 upload_bg_taobao_orderList_success')
+    case 'pop_upload_bg_taobao_orderList_success': {
+      console.error('请更新 Popup 的 pop_upload_bg_taobao_orderList_success')
       return
     }*/
     // 更新 bg_淘宝订单数据_失败
-    case 'upload_bg_taobao_orderList_error': {
+    case 'pop_upload_bg_taobao_orderList_error': {
       bg_state.taobao_orderList_error = storage.ls_get_taobao_orderList('error')
       return
     }
     // 更新 bg_淘宝订单数据_处理loading状态
-    case 'upload_bg_taobao_orderList_loading': {
-      console.log('upload_bg_taobao_orderList_loading ----', data)
+    case 'pop_upload_bg_taobao_orderList_loading': {
+      console.log('pop_upload_bg_taobao_orderList_loading ----', data)
       bg_state.taobao_orderList_loading = data
       return
     }
     // 更新 bg_淘宝订单数据_失败重新处理loading状态
-    case 'upload_bg_taobao_orderList_errorLoading': {
-      console.log('upload_bg_taobao_orderList_errorLoading ----', data)
+    case 'pop_upload_bg_taobao_orderList_errorLoading': {
+      console.log('pop_upload_bg_taobao_orderList_errorLoading ----', data)
       bg_state.taobao_orderList_errorLoading = data
       return
     }
     // 更新 bg_淘宝订单数据_失败
-    case 'upload_bg_taobao_loseOrder_ids': {
-      // console.log('请更新 条件失效的订单数据列表 upload_bg_taobao_loseOrder_ids')
+    case 'pop_upload_bg_taobao_loseOrder_ids': {
+      // console.log('请更新 条件失效的订单数据列表 pop_upload_bg_taobao_loseOrder_ids')
       bg_state.taobao_loseOrder_ids = storage.ls_get_list(TAOBAO_LOSE_ORDER_IDS)
       return
     }
     // 更新数据成功 提示
-    case 'upload_bg_msg_success': {
+    case 'pop_upload_bg_msg_success': {
       return ElMessage.success(message || '操作成功~')
     }
     // 更新数据错误 提示
-    case 'upload_bg_msg_error': {
+    case 'pop_upload_bg_msg_error': {
       return ElMessage.error(message || '获取出错~')
     }
     default:
       console.log(`暂未获取到[${type}]监听类型`)
+      sendResponse({
+        code: 0,
+        data: null,
+        message: type.toString().indexOf('pop_') === 0 ? `bg_:错误请求，没有找到type=“${type}”的方法` : `pop_:type=“${type}”不关我事`
+      })
   }
 })
 

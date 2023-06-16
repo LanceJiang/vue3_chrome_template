@@ -75,6 +75,7 @@ export default defineComponent({
       notificationTypeOpts,
       createNotification
     } = useBackground()
+    // 测试 弹窗 以及 btnClick callback
     window.test_onlyTest = () => {
       createNotification(notificationTypeOpts.onlyTest)
     }
@@ -98,7 +99,8 @@ export default defineComponent({
      * 接收来自popup和content_script发来的信息请求
      */
     chrome.runtime.onMessage.addListener((message: MessageRequest, sender, sendResponse) => {
-      console.log(message, 'message')
+      // console.log(message, 'message')
+      /**仅接收bg_前缀的数据用以 区分 popup(pop_)*/
       switch (message.type) {
         case 'bg_query_taobao_asyncBought_pcAll': {
           const { data, code } = message
@@ -137,7 +139,7 @@ export default defineComponent({
           sendResponse({
             code: 0,
             data: null,
-            message: `错误请求，没有找到type=“${message.type}”的方法`
+            message: message.type.toString().indexOf('bg_') === 0 ? `bg_:错误请求，没有找到type=“${message.type}”的方法` : `bg_:type=“${message.type}”不关我事`
           })
         }
       }
@@ -162,6 +164,7 @@ export default defineComponent({
       if (params.tabCode) {
         workingUrl += `?tabCode=${params.tabCode}`
       }
+      states.active_list_bought_itemsUrl = workingUrl
       // 匹配tabs 进行过滤
       const tabsFilter = (tabs) => {
         const _tabs = []
@@ -175,8 +178,9 @@ export default defineComponent({
       };
       let idx = 0
       const localRun = () => {
-        console.log(idx, 'idx..................')
-        if(idx > 1) return
+        states.taobao_orderList_loading = true
+        // console.log(idx, 'idx..................')
+        if(idx > 1) return states.taobao_orderList_loading = false
         idx++
         // 清空 历史的错误数据列表
         clear_localErrorData()
@@ -186,7 +190,6 @@ export default defineComponent({
           callback: ({ data, message, code }) => {
             console.log(data, message, code, 'data, message, code')
             if (code === 400) {
-              states.taobao_orderList_loading = false
               // 若找不到 合适的 tabs， 新开一个 订单页面
               chrome.tabs.create({ url: workingUrl })
               // 因为该页面加载比较慢 6s后再次尝试获取订单列表
