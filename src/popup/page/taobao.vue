@@ -1,6 +1,21 @@
 <template>
   <div class="wrap">
-    <div class="common-title">获取淘宝订单列表数据</div>
+    <div class="common-title">
+      获取淘宝订单列表数据
+      <div class="common-title_right">
+        <span style="margin-right: 4px;">获取数据间隔(即时生效)</span>
+        <ElSelect
+          v-model="taobao_orderUpdateInterval"
+          style="width: 120px;"
+          size="small">
+          <ElOption
+            v-for="item in taobao_orderUpdateIntervalOptions_"
+            :key="item.value"
+            v-bind="item"
+          />
+        </ElSelect>
+      </div>
+    </div>
     <div class="item-wrap">
       <div class="item-content">
         <div class="item">
@@ -42,6 +57,8 @@
         size="small"
         style="margin-left: auto;"
         type="primary"
+        :loading="taobao_orderList_loading"
+        :disabled="taobao_orderList_errorLoading"
         @click="query_taobao_asyncBought_pcAll"
       >获取(下载excel)</ElButton>
     </div>
@@ -59,7 +76,7 @@
               :key="id"
               class="order error"
             >
-              {{id || '-'}}
+              订单号： {{id || '-'}}
             </div>
           </el-scrollbar>
         </div>
@@ -70,22 +87,23 @@
           <div class="td">(失败)订单号</div>
           <div class="td">商品名称</div>
         </div>-->
-        <div style="max-height: 142px; border: 1px solid #ccc; background: #ecf5ff;">
+        <div style="max-height: 142px; border: 1px solid #ccc; background: #f8e3c5;">
           <el-scrollbar max-height="140px">
             <div
               v-for="o of taobao_orderList_error"
               :key="o.orderId"
               class="order">
-              {{o.orderId || '-'}}({{o.createTime || '-'}})
+              订单号： {{o.orderId || '-'}}
             </div>
           </el-scrollbar>
         </div>
-        <div class="item-content" style="margin-top: 6px;">
+        <div class="item-content" style="margin-top: 6px; display: flex;">
           <ElButton
             size="small"
             style="margin-left: auto;"
-            type="primary"
+            type="warning"
             :loading="taobao_orderList_errorLoading"
+            :disabled="taobao_orderList_loading"
             @click="tryGetOrders"
           >尝试重新获取(下载excel)</ElButton>
         </div>
@@ -106,7 +124,20 @@
 import {ElButton, ElMessage, ElDatePicker, ElInput, ElSelect, ElOption } from "element-plus";
 import {reactive, computed, ref, watch} from "vue";
 import {usePopupCtx} from "../hooks/usePopupCtx";
+import {taobao_orderUpdateIntervalOptions} from "@/config_constant";
 const bg_state = usePopupCtx()
+const taobao_orderUpdateInterval = computed({
+  get: () => bg_state.taobao_orderUpdateInterval,
+  set: (val) => {
+    bg_state.taobao_orderUpdateInterval = val
+    $bg.states.taobao_orderUpdateInterval = val
+  }
+})
+
+const taobao_orderUpdateIntervalOptions_ = ref(JSON.parse(JSON.stringify(taobao_orderUpdateIntervalOptions)))
+// 用于测试切换间隔0s打开
+window.test_switch0sStatus = () => taobao_orderUpdateIntervalOptions_.value[3].disabled = !taobao_orderUpdateIntervalOptions_.value[3].disabled
+const taobao_orderList_loading = computed(() => bg_state.taobao_orderList_loading)
 const taobao_orderList_error = computed(() => bg_state.taobao_orderList_error)
 const taobao_orderList_errorLoading = computed(() => bg_state.taobao_orderList_errorLoading)
 const taobao_loseOrder_ids = computed(() => bg_state.taobao_loseOrder_ids)
@@ -142,6 +173,7 @@ const query_taobao_asyncBought_pcAll = () => {
     ...typeParams[orderType.value]
   }
   console.error(params, 'params....')
+  taobao_orderList_loading
   $bg.try_connect_content_query_taobao_asyncBought_pcAll(params)
   /*// 验证待收货
   $bg.try_connect_content_query_taobao_asyncBought_pcAll({
@@ -187,6 +219,13 @@ const test2 = () => {
   .item-wrap {
     display: flex;
   }
+  .common-title_right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    color: #4097fd;
+  }
   .item-content {
     flex: 1;
     //margin-right: 10px;
@@ -217,7 +256,7 @@ const test2 = () => {
       color: #666;
       font-size: 12px;
       &:hover {
-        background: #79bbff;
+        background: #eebe77;
       }
       &.error {
         //color: #f56c6c;

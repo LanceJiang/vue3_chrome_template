@@ -165,7 +165,7 @@
       }
     }
     console.log(`总共需要请求数据${all_orders.length}个, 条件失效的订单数据${loseOrder_ids.length}个`)
-    console.error(all_orders, 'all_orders, loseOrder_ids', loseOrder_ids)
+    console.error(JSON.stringify(all_orders), 'all_orders, loseOrder_ids', loseOrder_ids)
     return { orders: all_orders, loseOrder_ids }
   }
 

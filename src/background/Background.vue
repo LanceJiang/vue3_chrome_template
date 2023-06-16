@@ -71,8 +71,16 @@ export default defineComponent({
       // updateBgMsg,
       // chromeSendMessage
       query_asyncBought_pcAllTrackingOrders,
-      try_query_taobao_trade_trackingNumber_byViewDetailAll
+      try_query_taobao_trade_trackingNumber_byViewDetailAll,
+      notificationTypeOpts,
+      createNotification
     } = useBackground()
+    window.test_onlyTest = () => {
+      createNotification(notificationTypeOpts.onlyTest)
+    }
+    window.test_taobao_system_api = () => {
+      createNotification(notificationTypeOpts.taobao_system_api)
+    }
     // 初始化
     chrome.runtime.onInstalled.addListener(details => {
       console.log('欢迎使用 vue3_crx_template')
@@ -147,6 +155,7 @@ export default defineComponent({
      * @param params
      */
     const try_connect_content_query_taobao_asyncBought_pcAll = (params) => {
+      states.taobao_orderList_loading = true
       // 获取淘宝所有订单
       let workingUrl = 'https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm'
       // 需要添加tabCode 保证数据获取正常
@@ -177,6 +186,7 @@ export default defineComponent({
           callback: ({ data, message, code }) => {
             console.log(data, message, code, 'data, message, code')
             if (code === 400) {
+              states.taobao_orderList_loading = false
               // 若找不到 合适的 tabs， 新开一个 订单页面
               chrome.tabs.create({ url: workingUrl })
               // 因为该页面加载比较慢 6s后再次尝试获取订单列表
@@ -185,11 +195,11 @@ export default defineComponent({
               // pop提示失败
               // updateBgMsg(message, false)
               const msg = '当前打开的淘宝 我的订单页 关联失效，建议关闭原我的淘宝订单页，进行重试'
+              states.taobao_orderList_loading = false
               updateBgMsg(msg, false)
             } else {
               // 消息派发成功: 更新popup 工作状态描述
               states.workStatus = '1.工作中(get订单列表)'
-              // upload_bg_workStatus('1.工作中(get订单列表)')
             }
           },
           tabsFilter

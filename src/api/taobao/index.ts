@@ -1,6 +1,6 @@
 import request from './request'
 // import storage from "@/utils/storage"
-import { $log_error } from "@/utils/util";
+import {$log_error, delayPromise} from "@/utils/util";
 import type {TaobaoOrder} from "@/common";
 // import test from "@/config_constant";
 
@@ -383,15 +383,21 @@ export const query_taobao_trade_trackingNumber = (orderId: string) => {
 export const query_taobao_trade_trackingNumber_byViewDetail = (order: Partial<TaobaoOrder>) => {
   const { local_viewDetail_url, orderId } = order
   // 通过重定向之后的路径一般为(目前验证全是) eg: //trade.taobao.com/trade/detail/trade_order_detail.htm?biz_order_id=1830202466507594069
-  const common_taobao_redirect_handler = (res: string) => {
-    // 形式如:<script> var data = JSON.parse({});
-    let data: any
-    // res = (res.match(/var data = JSON.parse\('(.*)'\);/) || [])[1]
-    res = (res.match(/var (data = JSON.parse\(.*\));/) || [])[1]
-    eval(res)
-    // console.error(res, 'res..........', data)
+  const common_taobao_redirect_handler = (res: string|object) => {
+    // console.error(res, 'res.... common_taobao_redirect_handler')
     return new Promise( (resolve, reject) => {
       try {
+        // 形式如:<script> var data = JSON.parse({});
+        // 数据监控拦截: 验证失败
+        if(typeof res === "object") {
+          // eg: {ret: ['FAIL_SYS_USER_VALIDATE', 'RGV587_ERROR::SM::哎哟喂,被挤爆啦,请稍后重试'], data: {url:"https://trade.taobao.com:443//trade/detail/trade_o…Ftrade%2Fdetail%2Ftrade_order_detail.htm&x5step=2"}}
+          return reject({type: 'system_api', data: res})
+        }
+        let data: any
+        // res = (res.match(/var data = JSON.parse\('(.*)'\);/) || [])[1]
+        res = (res.match(/var (data = JSON.parse\(.*\));/) || [])[1]
+        eval(res)
+        // console.error(res, 'res..........', data)
         const obj = data.deliveryInfo
         // 运单号: data.logisticsNum
         // 物流公司: data.logisticsName
@@ -430,7 +436,7 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (order: Partial<Ta
           resolve(_res)
         })
       } catch (e) {
-        reject(`query_taobao_trade_trackingNumber_byViewDetail [//trade.taobao.com/trade/detail/trade_item_detail.htm] 失败: ${e}`)
+        reject({type: 'system_api', message: `query_taobao_trade_trackingNumber_byViewDetail [//trade.taobao.com/trade/detail/trade_item_detail.htm] 失败: ${e}`})
       }
     })
   }
@@ -454,7 +460,7 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (order: Partial<Ta
            expressId
          }])
        } catch (e) {
-         reject(`query_taobao_trade_trackingNumber_byViewDetail [//tradearchive.taobao.com/trade/detail/trade_item_detail.htm] 失败: ${e}`)
+         reject({type: 'system_api', message: `query_taobao_trade_trackingNumber_byViewDetail [//tradearchive.taobao.com/trade/detail/trade_item_detail.htm] 失败: ${e}`})
        }
      })
    },
@@ -500,7 +506,7 @@ export const query_taobao_trade_trackingNumber_byViewDetail = (order: Partial<Ta
          }
          resolve(_res)
        } catch (e) {
-         reject(`query_taobao_trade_trackingNumber_byViewDetail [//trade.tmall.com/detail/orderDetail.htm] 失败: ${e}`)
+         reject({type: 'system_api', message: `query_taobao_trade_trackingNumber_byViewDetail [//trade.tmall.com/detail/orderDetail.htm] 失败: ${e}`})
        }
      })
    }

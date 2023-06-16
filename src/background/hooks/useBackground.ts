@@ -3,7 +3,7 @@ import type {MessageRequest, TaobaoOrder} from "@/common";
 import storage, {TAOBAO_LOSE_ORDER_IDS} from "@/utils/storage"
 import {jsonToSheetXlsx} from "@/utils/export2Excel";
 import {delayPromise, $log_error} from "@/utils/util";
-import envConfig from '@/config_constant'
+import envConfig, {taobao_orderUpdateIntervalConfig, taobao_orderUpdateIntervalOptions} from '@/config_constant'
 import {
   query_taobao_trade_trackingNumber,
   query_taobao_trade_trackingNumber_byViewDetail
@@ -128,15 +128,142 @@ export const tryDownLoadDataToExcel = (data: any[]) => {
     },*/
   })
 }
+export type NotificationType = {
+  // 类型标识唯一值
+  notificationType: string;
+  // 标题
+  title?: string;
+  // 弹窗信息
+  message: string;
+  // 操作按钮集合  // 最多支持两btn 触发index [0, 1]
+  buttons?: {title:string}[]
+}
+
+// 使用谷歌notification 提示窗
+export const useChromeNotification = () => {
+  // 判断是否为获取弹窗的标记
+  const isFireFox = navigator.userAgent.toLowerCase().indexOf("firefox") > -1
+  // notification 定时器
+  let notificationTimer: any
+  const notificationTypeOpts = {
+    // 淘宝处理接口出错
+    taobao_system_api: {
+      notificationType: 'taobao_system_api',
+      message: '您的淘宝登录验证出现问题\n请重试验证淘宝后继续工作',
+      // buttons: [{title: '确定'}]
+    },
+
+    // 请添加新类型
+    onlyTest: {
+      notificationType: 'onlyTest',
+      message: '我只是onlyTest。\n若您5s内未确认将自动执行',
+      buttons: [{title: '立即执行'}, {title: '30s后再试'}] // [0, 1]
+    },
+  }
+
+  // 定义弹窗按钮点击封装集合
+  /** 针对不同的chrome弹窗类型 添加对应的操作函数 Start
+   *  添加时的函数定义: [notificationType](Cancel): () => {}
+   */
+  const notification_btnClicks = {
+    taobao_system_api: () => {
+      console.error('taobao_system_api 测试成功 todo....')
+    },
+    onlyTest: () => {
+      console.error('onlyTest 测试成功')
+    },
+    onlyTestCancel: () => {
+      console.error('onlyTestCancel 测试成功')
+      // 延时30min 后执行 重新唤起询问窗口
+      return setTimeout(() => {
+        createNotification(notificationTypeOpts.onlyTest)
+      }, 30 * 1000)
+    }
+  }
+  const fnSplitKey = '_&_'
+  // 发送弹窗提示
+  const createNotification = (opts: NotificationType) => {
+    const {
+      message = '',
+      notificationType = '', // 用于弹窗按钮点击判断对应的类型[唯一类型]
+      buttons = [{title: '确定'}],
+      title = '提示'
+    } = opts
+    // // 开启提示音
+    // try{
+    //   this.warningAudio.play()
+    // }catch (e) {
+    //   console.log('无法开启提示音', e)
+    // }
+    const notificationId = `${notificationType}${fnSplitKey}${+new Date()}`
+    // @ts-ignore
+    chrome.notifications.create(notificationId, {
+      // 类型
+      type: 'basic',
+      // 优先级
+      priority: 2,
+      iconUrl: 'img/logo.png', // chrome.runtime.getURL('img/logo.png'),
+      contextMessage: 'lance_vue3_crx',
+      title,
+      message, // 字数多了 会被隐藏 最多4行
+      // 最多传递两个button
+      ...(!isFireFox && { buttons }) // 火狐不支持buttons
+    }, (notificationId: string) => {
+      // 提示5s 实际使用默认 6s 倒计时 (若不选中按钮操作 默认 6s 自动选择第一个按钮选项(确认类型按钮)调用)
+      /*notificationTimer = setTimeout(() => {
+        console.log('延时6s 执行默认确认的 回调....   notificationId', notificationId)
+        tryNotificationsBtnClick(notificationId,0)
+      }, 6000)*/
+    })
+  }
+  // 尝试获取到对应类型的按钮类型操作
+  const tryNotificationsBtnClick = (notificationId: string, index: number) => {
+    // console.log('notificationId, index', notificationId, index)
+    // 若有操作对应的按钮 清空6s默认问题自动执行操作
+    clearTimeout(notificationTimer)
+    // 清除当前提示
+    // @ts-ignore
+    chrome.notifications.clear(notificationId/*, () => {console.log('clear to do....')}*/)
+    const notificationType = notificationId.split(fnSplitKey)[0]
+    // 回调方法名定义 !!!!
+    const handlerName = `${notificationType}${index !== 0 ? 'Cancel' : ''}`
+    // 执行对应匹配上的 按钮回调
+    ; // @ts-ignore
+    (notification_btnClicks[handlerName] || function(){ console.log(`暂未找到‘${handlerName}’类型的chrome弹窗按钮回调`) })()
+  }
+  /**
+   * 通知按钮事件  function(notificationId, index){}
+   */
+  // @ts-ignore
+  chrome.notifications.onButtonClicked.addListener(tryNotificationsBtnClick)
+  return {
+    // notification类型集合
+    notificationTypeOpts,
+    // 开启notification弹窗 方法
+    createNotification,
+    // notification类型弹窗按钮点击处理集合
+    notification_btnClicks
+  }
+}
 export function useBackground() {
   // 插件后台数据存储
   const states = reactive({
     // 数据申明
+    // 订单列表更新间隔
+    taobao_orderUpdateInterval: '2-5s', // 2-5秒间隔
+    // 全订单获取
+    taobao_orderList_loading: false,
+    // 历史的失败订单获取
     taobao_orderList_errorLoading: false,
     // 插件执行状态
     workStatus: '空闲', // 空闲||工作中
     // 当前功能类型
     pageType: 'taobao', // 参考 Popup typeOptions
+  })
+  watch(() => states.taobao_orderList_loading, (bool) => {
+    // 更新 bg_淘宝订单数据_失败 loading
+    console.log('watch states.taobao_orderList_loading 变更触发', bool)
+    chromeSendMessage({type: 'upload_bg_taobao_orderList_loading', data: bool})
   })
   watch(() => states.taobao_orderList_errorLoading, (bool) => {
     // 更新 bg_淘宝订单数据_失败 loading
@@ -148,6 +275,15 @@ export function useBackground() {
     console.log('watch states.upload_bg_workStatus 变更触发', status)
     chromeSendMessage({type: 'upload_bg_workStatus', data: status})
   })
+  // 使用Notification 弹窗
+  const {
+    // notification类型集合
+    notificationTypeOpts,
+    // 开启notification弹窗 方法
+    createNotification,
+    // notification类型弹窗按钮点击处理集合
+    notification_btnClicks
+  } = useChromeNotification()
   /**
    * 第一次尝试将所有的订单拿过来查询物流并做处理 生成 excel
    * @param orders
@@ -156,7 +292,7 @@ export function useBackground() {
     const timeName = +new Date() + '_query_asyncBought_pcAllTrackingOrders'
     console.time(timeName)
     states.workStatus = '3.工作中(获取物流)'
-    // upload_bg_workStatus('3.工作中(获取物流)')
+    // states.taobao_orderList_loading = true
     const loadOrders: TaobaoOrder[] = []
     let num = 1
     const total_num = orders.length
@@ -203,7 +339,7 @@ export function useBackground() {
             consignTime: v.consignTime,
           })
         })
-      }).catch(e => {
+      }).catch(async (e: any) => {
         update_taobao_orderList_errorOne(order, true)
         /*// 失败输入填充
         loadOrders.push({
@@ -211,16 +347,37 @@ export function useBackground() {
           // // 唯一值
           // local_id: `${order.local_id}${v.expressId}`,
         })*/
-        $log_error(e, `订单：${order.orderId}详情获取失败`)
+        // 2-5s
+        let delayArgs = [3000, 2000]
+        if (e?.type === 'system_api') { // taobao_system_api
+          if(e.data) {
+            console.error(e, '错误监测......')
+            // 5-10s
+            delayArgs = [5000, 5000]
+            // createNotification 告诉用户 出现错误
+            createNotification(notificationTypeOpts.taobao_system_api)
+          } else {
+            console.error(`订单：${order.orderId}详情获取失败`, e.message)
+          }
+        } else {
+          console.error(`订单：${order.orderId}详情获取失败(非自定义reject类型)`, e)
+        }
+        // 延时器
+        await delayPromise(...delayArgs)
       })
-      // 延时0.5-2.5s
-      await delayPromise(2000, 500)
+      // 延时1-4s
+      // @ts-ignore
+      const delayValue = taobao_orderUpdateIntervalConfig[states.taobao_orderUpdateInterval] || [1000, 2000]
+      console.error('间隔', states.taobao_orderUpdateInterval, 'delayValue', delayValue)
+      // taobao_orderUpdateInterval todo
+      await delayPromise(...delayValue)
     }
     console.error(loadOrders, '最终orders 可以传给 后台 或生成xlsx 进行处理')
     console.timeEnd(timeName)
     states.workStatus = '4.空闲(订单处理完成)'
     // 工作完成 进行清空
     chromeSendMessage({type: 'upload_bg_taobao_orderLogText', data: ''})
+    states.taobao_orderList_loading = false
     // 下载excel
     tryDownLoadDataToExcel(loadOrders)
   }
@@ -270,7 +427,13 @@ export function useBackground() {
     states,
     // fns
     query_asyncBought_pcAllTrackingOrders,
-    try_query_taobao_trade_trackingNumber_byViewDetailAll
+    try_query_taobao_trade_trackingNumber_byViewDetailAll,
+    // notification类型集合
+    notificationTypeOpts,
+    // 开启notification弹窗 方法
+    createNotification,
+    // notification类型弹窗按钮点击处理集合
+    notification_btnClicks
     // // 发消息
     // chromeSendMessage,
     // updateBgMsg,

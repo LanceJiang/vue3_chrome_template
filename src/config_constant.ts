@@ -17,5 +17,32 @@ const getConfigByEnv = () => {
   }, {})
 }
 
+// 更新淘宝订单数据时间间隔
+export const taobao_orderUpdateIntervalOptions = [
+  {
+    label: '1-3s',
+    value: '1-3s'
+  },{
+    label: '2-5s',
+    value: '2-5s'
+  },{
+    label: '3-7s',
+    value: '3-7s'
+  },
+  // 仅作为debugger测试
+  {
+    label: '0s',
+    value: '0s',
+    disabled: true
+  },
+]
+export const taobao_orderUpdateIntervalConfig = {
+  // value: [randomNum, baseNum] 毫秒数
+  '1-3s': [1000, 2000], // 1-3
+  '2-5s': [2000, 3000], // 2-5
+  '3-7s': [3000, 4000], // 3-7
+  '0s': [0, 0],
+}
+
 export default getConfigByEnv()
 

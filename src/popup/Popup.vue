@@ -69,6 +69,8 @@ const IS_DEV = envConfig.IS_DEV
 // 与bg关联的状态管理
 const bg_state = reactive({
   tasksLoading: false,
+  taobao_orderUpdateInterval: $bg.states.taobao_orderUpdateInterval,
+  taobao_orderList_loading: $bg.states.taobao_orderList_loading,
   taobao_orderList_error: storage.ls_get_taobao_orderList('error'),
   taobao_orderList_errorLoading: $bg.states.taobao_orderList_errorLoading,
   taobao_loseOrder_ids: storage.ls_get_list(TAOBAO_LOSE_ORDER_IDS),
@@ -110,10 +112,15 @@ chrome.runtime.onMessage.addListener((msg) => {
     // 更新 bg_淘宝订单数据_失败
     case 'upload_bg_taobao_orderList_error': {
       bg_state.taobao_orderList_error = storage.ls_get_taobao_orderList('error')
-      bg_state.taobao_orderList_errorLoading = false
       return
     }
-    // 更新 bg_淘宝订单数据_失败重处理loading状态
+    // 更新 bg_淘宝订单数据_处理loading状态
+    case 'upload_bg_taobao_orderList_loading': {
+      console.log('upload_bg_taobao_orderList_loading ----', data)
+      bg_state.taobao_orderList_loading = data
+      return
+    }
+    // 更新 bg_淘宝订单数据_失败重新处理loading状态
     case 'upload_bg_taobao_orderList_errorLoading': {
       console.log('upload_bg_taobao_orderList_errorLoading ----', data)
       bg_state.taobao_orderList_errorLoading = data
