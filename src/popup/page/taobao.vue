@@ -3,7 +3,17 @@
     <div class="common-title">
       获取淘宝订单列表数据
       <div class="common-title_right">
-        <span style="margin-right: 4px;">获取数据间隔(即时生效)</span>
+        <ElTooltip :content="`执行订单序号为5的倍数：${taobao_5orderUpdateInterval ? '50%概率触发 刷新匹配的订单页 并 随机等待2-7s' : '无额外操作'}`" placement="top">
+          <ElSwitch
+            v-model="taobao_5orderUpdateInterval"
+            inline-prompt
+            active-text="是"
+            inactive-text="否"
+            size="small"
+            style="margin-right: 4px;"
+          />
+        </ElTooltip>
+        <span style="margin-right: 4px;">获取数据间隔</span>
         <ElSelect
           v-model="taobao_orderUpdateInterval"
           style="width: 120px;"
@@ -109,23 +119,30 @@
         </div>
       </template>
     </div>
-<!--    <div class="common-title">其他功能...</div>
-    <div class="item-content">
-      <ElButton
-        style="margin-left: auto;"
-        type="primary"
-        size="small"
-        @click="test2">其他功能todo</ElButton>
-    </div>-->
-  <!--  todo 展示失败的订单列表 todo...???  -->
+    <!--    <div class="common-title">其他功能...</div>
+        <div class="item-content">
+          <ElButton
+            style="margin-left: auto;"
+            type="primary"
+            size="small"
+            @click="test2">其他功能todo</ElButton>
+        </div>-->
+    <!--  todo 展示失败的订单列表 todo...???  -->
   </div>
 </template>
 <script setup lang="ts" name="Taobao">
-import {ElButton, ElMessage, ElDatePicker, ElInput, ElSelect, ElOption } from "element-plus";
+import {ElButton, ElMessage, ElDatePicker, ElInput, ElSelect, ElOption, ElSwitch, ElTooltip } from "element-plus";
 import {reactive, computed, ref, watch} from "vue";
 import {usePopupCtx} from "../hooks/usePopupCtx";
 import {taobao_orderUpdateIntervalOptions} from "@/config_constant";
 const bg_state = usePopupCtx()
+const taobao_5orderUpdateInterval = computed({
+  get: () => bg_state.taobao_5orderUpdateInterval,
+  set: (val) => {
+    bg_state.taobao_5orderUpdateInterval = val
+    $bg.states.taobao_5orderUpdateInterval = val
+  }
+})
 const taobao_orderUpdateInterval = computed({
   get: () => bg_state.taobao_orderUpdateInterval,
   set: (val) => {
@@ -227,7 +244,8 @@ const test2 = () => {
     display: flex;
     align-items: center;
     font-size: 12px;
-    color: #4097fd;
+    //color: #4097fd;
+    color: #b5b5b5;
   }
   .item-content {
     flex: 1;

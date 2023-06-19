@@ -162,7 +162,7 @@ export default defineComponent({
       let workingUrl = 'https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm'
       // 需要添加tabCode 保证数据获取正常
       if (params.tabCode) {
-        workingUrl += `?tabCode=${params.tabCode}`
+        workingUrl += `?action=itemlist/BoughtQueryAction&event_submit_do_query=1&tabCode=${params.tabCode}`
       }
       states.active_list_bought_itemsUrl = workingUrl
       // 匹配tabs 进行过滤

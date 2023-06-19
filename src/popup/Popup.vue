@@ -69,6 +69,7 @@ const IS_DEV = envConfig.IS_DEV
 // 与bg关联的状态管理
 const bg_state = reactive({
   tasksLoading: false,
+  taobao_5orderUpdateInterval: $bg.states.taobao_5orderUpdateInterval,
   taobao_orderUpdateInterval: $bg.states.taobao_orderUpdateInterval,
   taobao_orderList_loading: $bg.states.taobao_orderList_loading,
   taobao_orderList_error: storage.ls_get_taobao_orderList('error'),

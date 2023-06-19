@@ -172,7 +172,7 @@ export const useChromeNotification = () => {
       chrome.tabs.query({}, tabs => {
         const _tabs = []
         tabs.some(v => {
-          if(v.url && v.url.indexOf(workingUrl) === 0) {
+          if(v.url && v.url === workingUrl) {
             _tabs.unshift(v)
             if(v.active) return true
           }
@@ -256,6 +256,8 @@ export function useBackground() {
   // 插件后台数据存储
   const states = reactive({
     // 数据申明
+    // 开启5的倍数随机时间间隔
+    taobao_5orderUpdateInterval: false,
     // 订单列表更新间隔
     taobao_orderUpdateInterval: '2-6s', // 2-6秒间隔
     // 全订单获取
@@ -384,12 +386,12 @@ export function useBackground() {
       // console.log('间隔', states.taobao_orderUpdateInterval, 'delayValue', delayValue)
       if(num < total_num) {
         await delayPromise(...delayValue)
-        // 如果 num 为 5 的倍数 50%概率 触发刷新 当前 订单的 tab 页面
-        if(num % 5 === 0 && Math.random() * 1000 > 500) {
+        // 如果 开启 => num 为 5 的倍数 50%概率 触发刷新 当前 订单的 tab 页面
+        if(states.taobao_5orderUpdateInterval && num % 5 === 0 && Math.random() * 1000 > 500) {
           // 前面的尝试刷新订单列表页
           // tryReload_active_list_bought()
           notification_btnClicks.taobao_system_api()
-          console.error('num 为 5 的倍数 50%概率触发 刷新tab 并 随机等待2-7s')
+          console.error('执行订单序号为5的倍数：50%概率触发 刷新匹配的订单页 并 随机等待2-7s')
           await delayPromise(5000, 2000)
         }
       }
