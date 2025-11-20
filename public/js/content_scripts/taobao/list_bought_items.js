@@ -101,19 +101,37 @@
       let mainOrders_ = mainOrders.filter(v => {
         // 订单状态信息
         const statusInfo = v.statusInfo || {}
+        // 操作集合
         const operations = statusInfo.operations || []
         // 通过 是否有物流状态进行过滤 (viewLogistic 表示有物流)
-        let expressLimit = operations.find(operate => operate.id === 'viewLogistic')
+        const expressItem = operations.find(operate => operate.id === 'viewLogistic')
+        /*{
+          id: 'viewLogistic',
+          text: "查看物流",
+          // 快速获取物流信息的接口: 缺点是只能获取到该商品的第一条数据
+          dataUrl: "/trade/json/transit_step.do?bizOrderId=2489270197617594069"
+          // 物流详情链接
+          url: "https://market.m.taobao.com/app/dinamic/pc-trade-logistics/home.html?orderId=2489270197617594069&entrance=pc&oldUrl=%2F%2Fwuliu.taobao.com%2Fuser%2Forder_detail_new.htm%3Ftrade_id%3D2489270197617594069%26seller_id%3D3548136439"
+        }*/
 
         /** 自定义扩展数据相关 Start */
         // 自定义扩展数据_状态:是否有物流信息
-        v.local_expressFlag = !!expressLimit
+        v.createTime = v.orderInfo?.createTime
+        v.local_expressFlag = !!expressItem
+        if (expressItem) {
+          // // 快速获取物流信息的接口: 缺点是只能获取到该商品的第一条数据
+          // v.local_express_dataUrl = expressItem.dataUrl
+          // 物流详情链接
+          v.local_express_url = expressItem.url
+        }
         // 自定义扩展数据_订单详情链接(用于尝试 进一步获取物流信息重要数据)
         v.local_viewDetail_url = (operations.find(operate => operate.id === 'viewDetail') || {}).url
+        // 是否部分发货标记: (该判断仅针对)待收货相对正确
+        v.partialShipment = statusInfo.text === '部分发货'
         /** 自定义扩展数据相关 End */
 
-        // 过滤条件 (有查看物流的 || 交易成功的(订单存在过久或者其他原因可能导致不再展示物流标记)) // 初步认定 交易成功的是实体交易 有物流信息
-        const bool = expressLimit || statusInfo.text === '交易成功'
+          // 过滤条件 (有查看物流的 || 交易成功的(订单存在过久或者其他原因可能导致不再展示物流标记)) // 初步认定 交易成功的是实体交易 有物流信息
+        const bool = expressItem || statusInfo.text === '交易成功'
         // 过滤条件不符合的 orderId 丢置 loseOrder_ids
         if(!bool) {
           loseOrder_ids.push(v.id)
@@ -129,20 +147,20 @@
       console.error(message)
       // 对有效数据重新定义数据内容
       mainOrders_ = mainOrders_.map(v => {
-        const orderInfo = v.orderInfo || {}
+        // const orderInfo = v.orderInfo || {}
         const statusInfo = v.statusInfo || {}
         return {
           // 本地唯一标记(存在1个订单多个物流用local_id 进行自定义方便做处理)
           local_id: `${v.id}_`,
-          // // 订单创建时间
-          // createTime: orderInfo.createTime,
+          // 订单创建时间
+          createTime: v.createTime,
           // 订单id
           orderId: v.id,
           // orderId: orderInfo.id,
           // 自定义扩展数据_状态描述:主要看描述是否部分发货 若为部分发货 会展示: '部分发货'
           // v.local_statusText = statusInfo.text
-          // 是否部分发货标记: (该判断仅针对)待收货相对正确 ??? todo
-          partialShipment: statusInfo.text === '部分发货',
+          // 是否部分发货标记: (该判断仅针对)待收货相对正确
+          partialShipment: v.partialShipment,
           // // 商品价格
           // total_price: v.payInfo?.actualFee,
           // 是否有运费 todo... payInfo.postFees.value不为 ￥0.00???
@@ -150,8 +168,12 @@
           // goods: v.subOrders.map(_v => _v.itemInfo?.title).join(';'),
           // // 自定义扩展数据_状态:是否有物流信息
           // local_expressFlag: v.local_expressFlag,
-          // 自定义扩展数据_订单详情链接(主要用于尝试 进一步获取物流信息重要数据) todo...
+          // 自定义扩展数据_订单详情链接(主要用于尝试 进一步获取物流信息重要数据)
           local_viewDetail_url: v.local_viewDetail_url,
+          // // 快速获取物流信息的接口: 缺点是只能获取到该商品的第一条数据
+          // local_express_dataUrl: v.local_express_dataUrl,
+          // 物流详情链接
+          local_express_url: v.local_express_url,
           // express_xx相关内容数据做预留 交给 物流请求获取进行赋值
           // 物流号
           expressId: '',
@@ -178,32 +200,33 @@
     return { orders: all_orders, loseOrder_ids }
   }
 
-  const query_taobao_trade_trackingNumber = (orderId) => {
-    return request({
-      method: 'get',
-      url: `https://buyertrade.taobao.com/trade/json/transit_step.do?bizOrderId=${orderId}`
-    })
-  }
+  /*
+    const query_taobao_trade_trackingNumber = (orderId) => {
+      return request({
+        method: 'get',
+        url: `https://buyertrade.taobao.com/trade/json/transit_step.do?bizOrderId=${orderId}`
+      })
+    }
 
-  /*const query_asyncBought_pcAllTrackingOrders = () => {
-    query_taobao_asyncBought_pcAll('2022-10-31').then(async orders => {
-      for(let order of orders) {
-        await query_taobao_trade_trackingNumber(order.orderId).then(res => {
-          console.warn(`订单：${order.orderId}获取成功`, JSON.stringify(res))
-          order.expressId = res.expressId
-          order.expressName = res.expressName
-        })
-        const timeName = +new Date() + '_'
-        console.time(timeName)
-        await new Promise((r) => {
-          // 0-2s 延时
-          setTimeout(r, Math.random() * 2000 )
-        })
-        console.timeEnd(timeName)
-      }
-      console.error(orders, '最终orders 可以传给 后台 或生成xlsx 进行处理')
-    })
-  }*/
+    const query_asyncBought_pcAllTrackingOrders = () => {
+      query_taobao_asyncBought_pcAll('2022-10-31').then(async orders => {
+        for(let order of orders) {
+          await query_taobao_trade_trackingNumber(order.orderId).then(res => {
+            console.warn(`订单：${order.orderId}获取成功`, JSON.stringify(res))
+            order.expressId = res.expressId
+            order.expressName = res.expressName
+          })
+          const timeName = +new Date() + '_'
+          console.time(timeName)
+          await new Promise((r) => {
+            // 0-2s 延时
+            setTimeout(r, Math.random() * 2000 )
+          })
+          console.timeEnd(timeName)
+        }
+        console.error(orders, '最终orders 可以传给 后台 或生成xlsx 进行处理')
+      })
+    }*/
 
   let cur_panel = null
   const iconUrl = chrome.runtime.getURL('img/logo.png')

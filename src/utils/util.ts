@@ -1,8 +1,17 @@
-
 // 自定义个性 log
-export function consoleInfo(content = 'content', title = 'title', background = '#1475b2') {
+export function consoleInfo(content: any = 'content', title = 'title', background = '#1475b2') {
   content = typeof content === 'object' ? JSON.stringify(content) : content
-  console.log.apply(void 0, [`%c ${title}： %c ${content} `, 'padding: 1px; border-radius: 10px; color: #fff; background: #9159B2;', `padding: 1px; border-radius: 10px; color: #fff; background: ${background};`])
+  if (title) {
+    return console.log.apply(void 0, [
+      `%c ${title}: %c ${content} `,
+      'padding: 1px; border-radius: 10px; color: #fff; background: #9159B2;',
+      `padding: 1px; border-radius: 10px; color: #fff; background: ${background};`
+    ])
+  }
+  return console.log.apply(void 0, [
+    `%c ${content} `,
+    `padding: 1px; border-radius: 10px; color: #fff; background: ${background};`
+  ])
 }
 // 自定义 error log
 export function $log_error(info: any, title = 'error') {
@@ -15,13 +24,13 @@ export function $log_error(info: any, title = 'error') {
  * @param keyArr 【需要获取该对象内部数据key数组】
  * @returns {*}
  */
-export function getDeepValue (obj: any, keyArr:string[]) {
-  return keyArr.reduce((acc, key) => acc &&acc[key], obj)
+export function getDeepValue(obj: any, keyArr: string[]) {
+  return keyArr.reduce((acc, key) => acc && acc[key], obj)
 }
 
 // promise随机延时器
-export function delayPromise (randomNum = 2000, baseNum = 0) {
-  return new Promise(resolve => {
+export function delayPromise(randomNum = 2000, baseNum = 0) {
+  return new Promise((resolve) => {
     const timeName = +new Date() + '_'
     console.time(timeName)
     setTimeout(() => {
@@ -30,4 +39,15 @@ export function delayPromise (randomNum = 2000, baseNum = 0) {
       resolve()
     }, baseNum + Math.random() * randomNum)
   })
+}
+
+export const parseUrlQuery = (url: string) => {
+  return url
+    .split('?')[1]
+    ?.split('&')
+    .reduce((obj, str) => {
+      const [key, value] = str.split('=')
+      obj[key] = value
+      return obj
+    }, {} as any)
 }

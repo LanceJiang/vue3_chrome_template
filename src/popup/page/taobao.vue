@@ -162,8 +162,16 @@ const taobao_orderList_error = computed(() => bg_state.taobao_orderList_error)
 const taobao_orderList_errorLoading = computed(() => bg_state.taobao_orderList_errorLoading)
 const taobao_loseOrder_ids = computed(() => bg_state.taobao_loseOrder_ids)
 const taobao_orderLogText = computed(() => bg_state.taobao_orderLogText)
+const getLastMonthDate = () => {
+  const date = new Date()
+  date.setMonth(date.getMonth() - 2)
+  const m = date.getMonth() + 1
+  const d = date.getDate()
+  // YYYY/MM/DD
+  return `${date.getFullYear()}/${m < 10 ? `0${m}` : m}/${d < 10 ? `0${d}` : d}`
+}
 const orderQuery = reactive({
-  dateBegin: '2023/01/01 00:00:00',
+  dateBegin: `${getLastMonthDate()} 00:00:00`,
   // dateEnd: undefined,
   itemTitle: ''
 })
@@ -193,7 +201,6 @@ const query_taobao_asyncBought_pcAll = () => {
     ...typeParams[orderType.value]
   }
   console.error(params, 'params....')
-  taobao_orderList_loading
   $bg.try_connect_content_query_taobao_asyncBought_pcAll(params)
   /*// 验证待收货
   $bg.try_connect_content_query_taobao_asyncBought_pcAll({
@@ -212,7 +219,8 @@ const tryGetOrders = () => {
   // $bg.states.taobao_orderList_errorLoading
   $bg.try_query_taobao_trade_trackingNumber_byViewDetailAll()
   // $bg.try_query_taobao_trade_trackingNumber_byViewDetail()
-  /*$bg.try_query_taobao_trade_trackingNumber_byViewDetail({
+  // $bg.try_query_taobao_trade_trackingNumber_byViewDetail({
+  /*$bg.try_query_taobao_trade_trackingNumber_by_viewLogistic({
     // 天猫测试
     // local_viewDetail_url: "//trade.tmall.com/detail/orderDetail.htm?bizOrderId=1823544375217594069",
     // orderId: "1823544375217594069"

@@ -1,13 +1,17 @@
-import {reactive, ref, toRefs, watch} from "vue";
-import type {MessageRequest, TaobaoOrder} from "@/common";
-import storage, {TAOBAO_LOSE_ORDER_IDS} from "@/utils/storage"
-import {jsonToSheetXlsx} from "@/utils/export2Excel";
-import {delayPromise, $log_error} from "@/utils/util";
-import envConfig, {taobao_orderUpdateIntervalConfig, taobao_orderUpdateIntervalOptions} from '@/config_constant'
+import { reactive, ref, toRefs, watch } from 'vue'
+import type { MessageRequest, TaobaoOrder } from '@/common'
+import storage, { TAOBAO_LOSE_ORDER_IDS } from '@/utils/storage'
+import { jsonToSheetXlsx } from '@/utils/export2Excel'
+import { delayPromise, $log_error, consoleInfo } from '@/utils/util'
+import envConfig, {
+  taobao_orderUpdateIntervalConfig,
+  taobao_orderUpdateIntervalOptions
+} from '@/config_constant'
 import {
   query_taobao_trade_trackingNumber,
-  query_taobao_trade_trackingNumber_byViewDetail
-} from '@/api/taobao';
+  query_taobao_trade_trackingNumber_byViewDetail,
+  query_taobao_trade_trackingNumber_by_viewLogistic
+} from '@/api/taobao'
 // @ts-ignore
 export const chromeSendMessage: (p: MessageRequest) => void = chrome.runtime.sendMessage
 // 发消息
@@ -22,29 +26,29 @@ export const updateBgMsg = (message: string, isSuccess = false) => {
 export const update_taobao_loseOrder_ids = (list: string[] = [], sendMessage = true) => {
   storage.ls_set_list(TAOBAO_LOSE_ORDER_IDS, list)
   // 更新条件失效的订单
-  if(sendMessage) {
-    chromeSendMessage({type: 'pop_upload_bg_taobao_loseOrder_ids'})
+  if (sendMessage) {
+    chromeSendMessage({ type: 'pop_upload_bg_taobao_loseOrder_ids' })
   }
 }
 // 更新获取数据失败订单
 export const update_taobao_orderList_error = (files: TaobaoOrder[] = [], sendMessage = true) => {
   storage.ls_set_taobao_orderList(files, 'error')
   // 更新条件失效的订单
-  if(sendMessage) {
-    chromeSendMessage({type: 'pop_upload_bg_taobao_orderList_error'})
+  if (sendMessage) {
+    chromeSendMessage({ type: 'pop_upload_bg_taobao_orderList_error' })
   }
 }
 // 对本地存储 添加||删除 单个订单 做更新
 export const update_taobao_orderList_errorOne = (file: TaobaoOrder, isAdd = true) => {
   const files: TaobaoOrder[] = storage.ls_get_taobao_orderList('error')
   // 清除相同orderId 订单记录
-  let file_idx = files.findIndex(v => file.orderId === v.orderId)
+  let file_idx = files.findIndex((v) => file.orderId === v.orderId)
   while (file_idx > -1) {
     files.splice(file_idx, 1)
-    file_idx = files.findIndex(v => file.orderId === v.orderId)
+    file_idx = files.findIndex((v) => file.orderId === v.orderId)
   }
   // 添加新的错误数据
-  if(isAdd) {
+  if (isAdd) {
     files.unshift(file)
   }
   // 更新条件失效的订单
@@ -53,7 +57,7 @@ export const update_taobao_orderList_errorOne = (file: TaobaoOrder, isAdd = true
 
 // 订单数据导出excel
 export const tryDownLoadDataToExcel = (data: any[]) => {
-  if(!data.length) {
+  if (!data.length) {
     const msg = '暂无订单数据,无法打印~'
     $log_error(msg)
     return updateBgMsg(msg, false)
@@ -77,15 +81,16 @@ export const tryDownLoadDataToExcel = (data: any[]) => {
   const header = {
     orderId: '订单号',
     expressId: '快递号',
-    consignTime: '发货时间',
+    // consignTime: '发货时间',
+    consignTime: '下单时间', // 发货||下单
     // 是否部分发货
     partialShipment: '发货状态',
-    expressName: '快递公司',
+    expressName: '快递公司'
     // expressType: '快递支付类型' // todo
   }
   const header_keys = Object.keys(header)
   // 生成excel 前 数据美化
-  data = data.map(v => {
+  data = data.map((v) => {
     const obj: any = header_keys.reduce((o, k) => {
       o[k] = v[k]
       return o
@@ -97,15 +102,15 @@ export const tryDownLoadDataToExcel = (data: any[]) => {
   // 手动设置cols 宽度
   const worksheet_cols = [
     // 0:orderId: '订单号', 19位数 + 2
-    { 'wch': 21 },
+    { wch: 21 },
     // 1:expressId: '快递号',15位数 + 2
-    { 'wch': 17 },
+    { wch: 17 },
     // 2:consignTime: '发货时间',20位数 + 2
-    { 'wch': 22 },
+    { wch: 22 },
     // 3:partialShipment: '发货状态',12位数 + 2
-    { 'wch': 14 },
+    { wch: 14 },
     // 4:expressName: '快递公司',14位数 + 2
-    { 'wch': 16 },
+    { wch: 16 }
     // // 5:expressType: '快递支付类型' // todo
     // { 'wch': 14 },
   ]
@@ -116,12 +121,12 @@ export const tryDownLoadDataToExcel = (data: any[]) => {
   // 修改 expressType col 长度
   worksheet_cols[3] = {wch: 12 + 2}*/
   const _date = new Date()
-  ;jsonToSheetXlsx({
+  jsonToSheetXlsx({
     data,
     // 自定义头
     header,
     filename: `订单导出${_date.toLocaleDateString()} ${_date.toLocaleTimeString()}.xlsx`,
-    worksheet_cols,
+    worksheet_cols
     /*json2sheetOpts: {
       // 指定顺序
       header: ['expressId', 'orderId'],
@@ -130,26 +135,26 @@ export const tryDownLoadDataToExcel = (data: any[]) => {
 }
 export type NotificationType = {
   // 类型标识唯一值
-  notificationType: string;
+  notificationType: string
   // 标题
-  title?: string;
+  title?: string
   // 弹窗信息
-  message: string;
+  message: string
   // 操作按钮集合  // 最多支持两btn 触发index [0, 1]
-  buttons?: {title:string}[]
+  buttons?: { title: string }[]
 }
 
 // 使用谷歌notification 提示窗
 export const useChromeNotification = () => {
   // 判断是否为获取弹窗的标记
-  const isFireFox = navigator.userAgent.toLowerCase().indexOf("firefox") > -1
+  const isFireFox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1
   // notification 定时器
   let notificationTimer: any
   const notificationTypeOpts = {
     // 淘宝处理接口出错
     taobao_system_api: {
       notificationType: 'taobao_system_api',
-      message: '您的淘宝登录验证出现问题\n请重试验证淘宝后继续工作',
+      message: '您的淘宝登录验证出现问题\n请重试验证淘宝后继续工作'
       // buttons: [{title: '确定'}]
     },
 
@@ -157,8 +162,8 @@ export const useChromeNotification = () => {
     onlyTest: {
       notificationType: 'onlyTest',
       message: '我只是onlyTest。\n若您5s内未确认将自动执行',
-      buttons: [{title: '立即执行'}, {title: '30s后再试'}] // [0, 1]
-    },
+      buttons: [{ title: '立即执行' }, { title: '30s后再试' }] // [0, 1]
+    }
   }
 
   // 定义弹窗按钮点击封装集合
@@ -168,17 +173,21 @@ export const useChromeNotification = () => {
   const notification_btnClicks = {
     taobao_system_api: () => {
       console.log('taobao_system_api 尝试打开 上次的 我的订单页')
-      const workingUrl = window.states_active_list_bought_itemsUrl || 'https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm'
-      chrome.tabs.query({}, tabs => {
+      const workingUrl =
+        window.states_active_list_bought_itemsUrl ||
+        'https://buyertrade.taobao.com/trade/itemlist/list_bought_items.htm'
+      chrome.tabs.query({}, (tabs) => {
         const _tabs = []
-        tabs.some(v => {
-          if(v.url && v.url === workingUrl) {
+        tabs.some((v) => {
+          if (v.url && v.url === workingUrl) {
             _tabs.unshift(v)
-            if(v.active) return true
+            if (v.active) return true
           }
         })
-        if(_tabs[0]) {
+        if (_tabs[0]) {
           chrome.tabs.reload(_tabs[0].id)
+        } else {
+          chrome.tabs.create({ url: workingUrl })
         }
       })
     },
@@ -199,29 +208,33 @@ export const useChromeNotification = () => {
     const {
       message = '',
       notificationType = '', // 用于弹窗按钮点击判断对应的类型[唯一类型]
-      buttons = [{title: '确定'}],
+      buttons = [{ title: '确定' }],
       title = '提示'
     } = opts
     const notificationId = `${notificationType}${fnSplitKey}${+new Date()}`
     // @ts-ignore
-    chrome.notifications.create(notificationId, {
-      // 类型
-      type: 'basic',
-      // 优先级
-      priority: 2,
-      iconUrl: 'img/logo.png', // chrome.runtime.getURL('img/logo.png'),
-      contextMessage: 'lance_vue3_crx',
-      title,
-      message, // 字数多了 会被隐藏 最多4行
-      // 最多传递两个button
-      ...(!isFireFox && { buttons }) // 火狐不支持buttons
-    }, (notificationId: string) => {
-      // 提示5s 实际使用默认 6s 倒计时 (若不选中按钮操作 默认 6s 自动选择第一个按钮选项(确认类型按钮)调用)
-      notificationTimer = setTimeout(() => {
-        console.log('延时6s 执行默认确认的 回调....   notificationId', notificationId)
-        tryNotificationsBtnClick(notificationId,0)
-      }, 6000)
-    })
+    chrome.notifications.create(
+      notificationId,
+      {
+        // 类型
+        type: 'basic',
+        // 优先级
+        priority: 2,
+        iconUrl: 'img/logo.png', // chrome.runtime.getURL('img/logo.png'),
+        contextMessage: 'sugargoo_crx',
+        title,
+        message, // 字数多了 会被隐藏 最多4行
+        // 最多传递两个button
+        ...(!isFireFox && { buttons }) // 火狐不支持buttons
+      },
+      (notificationId: string) => {
+        // 提示5s 实际使用默认 6s 倒计时 (若不选中按钮操作 默认 6s 自动选择第一个按钮选项(确认类型按钮)调用)
+        notificationTimer = setTimeout(() => {
+          console.log('延时6s 执行默认确认的 回调....   notificationId', notificationId)
+          tryNotificationsBtnClick(notificationId, 0)
+        }, 6000)
+      }
+    )
   }
   // 尝试获取到对应类型的按钮类型操作
   const tryNotificationsBtnClick = (notificationId: string, index: number) => {
@@ -230,13 +243,17 @@ export const useChromeNotification = () => {
     clearTimeout(notificationTimer)
     // 清除当前提示
     // @ts-ignore
-    chrome.notifications.clear(notificationId/*, () => {console.log('clear to do....')}*/)
+    chrome.notifications.clear(notificationId /*, () => {console.log('clear to do....')}*/)
     const notificationType = notificationId.split(fnSplitKey)[0]
     // 回调方法名定义 !!!!
-    const handlerName = `${notificationType}${index !== 0 ? 'Cancel' : ''}`
+    const handlerName = `${notificationType}${index !== 0 ? 'Cancel' : ''}` // @ts-ignore
     // 执行对应匹配上的 按钮回调
-    ; // @ts-ignore
-    (notification_btnClicks[handlerName] || function(){ console.log(`暂未找到‘${handlerName}’类型的chrome弹窗按钮回调`) })()
+    ;(
+      notification_btnClicks[handlerName] ||
+      function () {
+        console.log(`暂未找到‘${handlerName}’类型的chrome弹窗按钮回调`)
+      }
+    )()
   }
   /**
    * 通知按钮事件  function(notificationId, index){}
@@ -272,24 +289,36 @@ export function useBackground() {
     active_list_bought_itemsUrl: ''
   })
 
-  watch(() => states.taobao_orderList_loading, (bool) => {
-    // 更新 bg_淘宝订单数据_失败 loading
-    console.log('watch states.taobao_orderList_loading 变更触发', bool)
-    chromeSendMessage({type: 'pop_upload_bg_taobao_orderList_loading', data: bool})
-  })
-  watch(() => states.active_list_bought_itemsUrl, (url) => {
-    window.states_active_list_bought_itemsUrl = url
-  })
-  watch(() => states.taobao_orderList_errorLoading, (bool) => {
-    // 更新 bg_淘宝订单数据_失败 loading
-    console.log('watch states.taobao_orderList_errorLoading 变更触发', bool)
-    chromeSendMessage({type: 'pop_upload_bg_taobao_orderList_errorLoading', data: bool})
-  })
-  watch(() => states.workStatus, (status) => {
-    // 更新 bg_工作状态描述
-    console.log('watch states.pop_upload_bg_workStatus 变更触发', status)
-    chromeSendMessage({type: 'pop_upload_bg_workStatus', data: status})
-  })
+  watch(
+    () => states.taobao_orderList_loading,
+    (bool) => {
+      // 更新 bg_淘宝订单数据_失败 loading
+      console.log('watch states.taobao_orderList_loading 变更触发', bool)
+      chromeSendMessage({ type: 'pop_upload_bg_taobao_orderList_loading', data: bool })
+    }
+  )
+  watch(
+    () => states.active_list_bought_itemsUrl,
+    (url) => {
+      window.states_active_list_bought_itemsUrl = url
+    }
+  )
+  watch(
+    () => states.taobao_orderList_errorLoading,
+    (bool) => {
+      // 更新 bg_淘宝订单数据_失败 loading
+      console.log('watch states.taobao_orderList_errorLoading 变更触发', bool)
+      chromeSendMessage({ type: 'pop_upload_bg_taobao_orderList_errorLoading', data: bool })
+    }
+  )
+  watch(
+    () => states.workStatus,
+    (status) => {
+      // 更新 bg_工作状态描述
+      console.log('watch states.pop_upload_bg_workStatus 变更触发', status)
+      chromeSendMessage({ type: 'pop_upload_bg_workStatus', data: status })
+    }
+  )
   // 使用Notification 弹窗
   const {
     // notification类型集合
@@ -311,7 +340,7 @@ export function useBackground() {
     const loadOrders: TaobaoOrder[] = []
     let num = 1
     const total_num = orders.length
-    for(const order of orders) {
+    for (const order of orders) {
       // 暂时先过滤掉无物流的数据
       /*if (!order.local_expressFlag) {
         update_taobao_orderList_errorOne(order)
@@ -329,65 +358,77 @@ export function useBackground() {
         order.expressName = res.expressName // || '-'
         loadOrders.push(order)
       })*/
+      /***
+       * todo 1.此时是需要获取的所有订单走流程 走得时候 存在 不通过物流详情获取 可能获取的数据是缺少的
+       *      2.通过详情 获取的 有新的url 配置
+       *      3.通过订单快速获取物流的方式 可能是缺少的
+       */
       const txt = `获取第${num}条订单：${order.orderId}, 剩：${total_num - num}条数据`
-      console.error(txt)
+      consoleInfo(txt, '', '#dc2626')
       // popup 上进行更新
-      chromeSendMessage({type: 'pop_upload_bg_taobao_orderLogText', data: txt})
+      chromeSendMessage({ type: 'pop_upload_bg_taobao_orderLogText', data: txt })
       num++
       // @ts-ignore
-      await query_taobao_trade_trackingNumber_byViewDetail(order).then((list: any[]) => {
-        console.warn(`订单：${order.orderId}获取成功`, JSON.stringify(list))
-        list.forEach((v, idx) => {
-          // 若获取成功 剔除列表数据_失败
-          if(v.expressId && idx === 0) {
-            update_taobao_orderList_errorOne(order, false)
-          }
-          loadOrders.push({
-            ...order,
-            // // 唯一值
-            // local_id: `${order.local_id}${v.expressId}`,
-            // 物流公司
-            expressName: v.expressName,
-            // 运单号
-            expressId: v.expressId,
-            // 快递发货时间
-            consignTime: v.consignTime,
+      // await query_taobao_trade_trackingNumber_byViewDetail(order).then((list: any[]) => {
+      await query_taobao_trade_trackingNumber_by_viewLogistic(order)
+        .then((list: any[]) => {
+          consoleInfo(list, `订单：${order.orderId}获取成功`, 'orange')
+          list.forEach((v, idx) => {
+            // 若获取成功 剔除列表数据_失败
+            if (v.expressId && idx === 0) {
+              update_taobao_orderList_errorOne(order, false)
+            }
+            loadOrders.push({
+              ...order,
+              // // 唯一值
+              // local_id: `${order.local_id}${v.expressId}`,
+              // 物流公司
+              expressName: v.expressName,
+              // 运单号
+              expressId: v.expressId,
+              // 快递发货时间 || 下单时间
+              consignTime: v.consignTime || order.createTime
+            })
           })
         })
-      }).catch(async (e: any) => {
-        update_taobao_orderList_errorOne(order, true)
-        /*// 失败输入填充
+        .catch(async (e: any) => {
+          update_taobao_orderList_errorOne(order, true)
+          /*// 失败输入填充
         loadOrders.push({
           ...order,
           // // 唯一值
           // local_id: `${order.local_id}${v.expressId}`,
         })*/
-        // 2-5s
-        let delayArgs = [3000, 2000]
-        if (e?.type === 'system_api') {
-          if(e.data) {
-            console.error(e, '错误监测......')
-            // 5-10s
-            delayArgs = [5000, 5000]
-            // createNotification 告诉用户 出现错误
-            createNotification(notificationTypeOpts.taobao_system_api)
+          // 2-5s
+          let delayArgs = [3000, 2000]
+          if (e?.type === 'system_api') {
+            if (e.data) {
+              console.error(e, '错误监测......')
+              // 5-10s
+              delayArgs = [5000, 5000]
+              // 重置跳转到 该订单的物流业
+              states.active_list_bought_itemsUrl = order.local_express_url
+              // createNotification 告诉用户 出现错误
+              createNotification(notificationTypeOpts.taobao_system_api)
+            } else {
+              console.error(`订单：${order.orderId}详情获取失败`, e.message)
+            }
           } else {
-            console.error(`订单：${order.orderId}详情获取失败`, e.message)
+            console.error(`订单：${order.orderId}详情获取失败(非自定义reject类型)`, e)
           }
-        } else {
-          console.error(`订单：${order.orderId}详情获取失败(非自定义reject类型)`, e)
-        }
-        // 延时器
-        await delayPromise(...delayArgs)
-      })
+          // 延时器
+          await delayPromise(...delayArgs)
+        })
       // 延时1-4s
       // @ts-ignore
-      const delayValue = taobao_orderUpdateIntervalConfig[states.taobao_orderUpdateInterval] || taobao_orderUpdateIntervalConfig['2-6s']
+      const delayValue =
+        taobao_orderUpdateIntervalConfig[states.taobao_orderUpdateInterval] ||
+        taobao_orderUpdateIntervalConfig['2-6s']
       // console.log('间隔', states.taobao_orderUpdateInterval, 'delayValue', delayValue)
-      if(num < total_num) {
+      if (num < total_num) {
         await delayPromise(...delayValue)
         // 如果 开启 => num 为 5 的倍数 50%概率 触发刷新 当前 订单的 tab 页面
-        if(states.taobao_5orderUpdateInterval && num % 5 === 0 && Math.random() * 1000 > 500) {
+        if (states.taobao_5orderUpdateInterval && num % 5 === 0 && Math.random() * 1000 > 500) {
           // 前面的尝试刷新订单列表页
           // tryReload_active_list_bought()
           notification_btnClicks.taobao_system_api()
@@ -400,7 +441,7 @@ export function useBackground() {
     console.timeEnd(timeName)
     states.workStatus = '4.空闲(订单处理完成)'
     // 工作完成 进行清空
-    chromeSendMessage({type: 'pop_upload_bg_taobao_orderLogText', data: ''})
+    chromeSendMessage({ type: 'pop_upload_bg_taobao_orderLogText', data: '' })
     states.taobao_orderList_loading = false
     // 下载excel
     tryDownLoadDataToExcel(loadOrders)
@@ -413,7 +454,7 @@ export function useBackground() {
   const try_query_taobao_trade_trackingNumber_byViewDetailAll = async (orders: any) => {
     // 更新 bg_淘宝订单数据_失败 loading
     states.taobao_orderList_errorLoading = true
-    if(!orders) {
+    if (!orders) {
       orders = storage.ls_get_taobao_orderList('error')
     }
     /*const loadOrders = []

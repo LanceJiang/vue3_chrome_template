@@ -30,6 +30,7 @@
   },
   "options_page": "options.html",
   "permissions": [
+    "cookies",
     "webRequest",
     "webRequestBlocking",
     "storage",

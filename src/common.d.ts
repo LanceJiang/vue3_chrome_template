@@ -10,11 +10,11 @@ export type DefaultObject = {
 export type TaobaoOrder = {
   // 本地唯一标记(存在1个订单多个物流用local_id 进行自定义方便做处理)
   local_id: string
-  // // 订单创建时间
-  // createTime: string
+  // 订单创建时间
+  createTime: string
   // 订单id
   orderId: v.id
-  // 是否部分发货标记: todo
+  // 是否部分发货标记
   partialShipment: boolean
   // // 商品价格
   // total_price: string
@@ -24,10 +24,14 @@ export type TaobaoOrder = {
   // local_expressFlag: boolean
   // 自定义扩展数据_订单详情链接(主要用于尝试 进一步获取物流信息重要数据)
   local_viewDetail_url: string
+  // 快速获取物流信息的接口: 缺点是只能获取到该商品的第一条数据
+  local_express_dataUrl: string
+  // 物流详情链接
+  local_express_url: string
   // 物流号
   expressId: string
   // 物流公司名称
   expressName: string
-  // 发货时间
+  // 发货时间/下单时间
   consignTime: string
 }
